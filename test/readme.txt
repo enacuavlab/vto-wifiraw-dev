@@ -10,3 +10,11 @@ time dd if=/dev/urandom of=/dev/shm/data-urandom.dump bs=1000000000 count=1
 real    0m6,875s
 user    0m0,000s
 sys     0m6,873s
+
+
+Unix Domain Sockets
+-------------------
+socat unix-recvfrom:/tmp/datagram.sock,fork STDOUT
+
+echo "hello" | nc -uU /tmp/datagram.sock
+echo "hello" | nc -uU -w1 /tmp/datagram.sock
