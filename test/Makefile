@@ -1,17 +1,26 @@
-LDFLAGS=-lpcap
-CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library
-#CPPFLAGS=-D _GNU_SOURCE -I../radiotap-library
+CPPFLAGS=-Wall -D _GNU_SOURCE
+#CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library
 
-all: rx tx
+
+all: reading sending
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-rx: rx.o ../radiotap-library/radiotap.o
+reading: reading.o
 	gcc -o $@ $^ $(LDFLAGS)
 
-tx: tx.o ../radiotap-library/radiotap.o
+sending: sending.o
 	gcc -o $@ $^ $(LDFLAGS)
+
+
+#rx: rx.o ../radiotap-library/radiotap.o
+#        gcc -o $@ $^ $(LDFLAGS)
+
+#tx: tx.o ../radiotap-library/radiotap.o
+#        gcc -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f rx tx *~ *.o ../radiotap-library/radiotap.o
+	rm -f reading sending *.o
+#        rm -f rx tx *~ *.o ../radiotap-library/radiotap.o
+
