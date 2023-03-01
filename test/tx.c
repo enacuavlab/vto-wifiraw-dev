@@ -100,7 +100,6 @@ int main(int argc, char *argv[]) {
   packet_header_length = packet_header_init(packet_transmit_buffer);
 
   int param_packet_length = 1450;
-  int param_min_packet_length = 0;
 
   for(;;) {
     fd_set rfds;
@@ -110,7 +109,7 @@ int main(int argc, char *argv[]) {
     select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
     if (FD_ISSET(STDIN_FILENO, &rfds)) {
 
-      int in = read(STDIN_FILENO, packet_transmit_buffer + packet_header_length, param_packet_length);
+      read(STDIN_FILENO, packet_transmit_buffer + packet_header_length, param_packet_length);
       int plen = sizeof(wifi_packet_header_t) + packet_header_length + param_packet_length;
 
       int r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
