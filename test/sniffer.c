@@ -7,16 +7,89 @@
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 
+#include "radiotap_iter.h"
+
 int packets;
 
 /*****************************************************************************/
 typedef struct {
-  int header_lg;
   pcap_t *ppcap;
+  int header_lg;
+  int wrong_crc_cnt;
+  int received_packet_cnt;
 } interface_t;
 
+
+typedef struct  {
+        int m_nChannel;
+        int m_nChannelFlags;
+        int m_nRate;
+        int m_nAntenna;
+        int m_nRadiotapFlags;
+} __attribute__((packed)) radiotap_t;
+
+
+typedef struct {
+    uint32_t sequence_number;
+} __attribute__((packed)) wifi_packet_header_t;
+
 /*****************************************************************************/
-void packet_handler(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
+int param_data_packets_per_block = 4;
+int param_fec_packets_per_block = 2;
+
+/*****************************************************************************/
+void process_payload_811(const u_char *data, size_t data_len, int crc_correct) {
+
+  wifi_packet_header_t *wph = (wifi_packet_header_t*)data;
+  data += sizeof(wifi_packet_header_t);
+  data_len -= sizeof(wifi_packet_header_t);
+
+  int block_num = wph->sequence_number / (param_data_packets_per_block+param_fec_packets_per_block);
+
+  printf("seq %x blk %x crc %d len %ld\n",wph->sequence_number,block_num,crc_correct,data_len);
+
+}
+
+/*****************************************************************************/
+void packet_handler_811(u_char *user, const struct pcap_pkthdr *ppcapPacketHeader, const u_char *pu8Payload) {
+
+  int u16HeaderLen = (pu8Payload[2] + (pu8Payload[3] << 8));
+
+  interface_t *inter = (interface_t *)user;
+  if (ppcapPacketHeader->len < (u16HeaderLen + inter->header_lg)) return; // header_lg = n80211HeaderLength
+ 
+  int bytes = ppcapPacketHeader->len - (u16HeaderLen + inter->header_lg);
+  if (bytes < 0) return;
+
+  struct ieee80211_radiotap_iterator rti;
+  if (ieee80211_radiotap_iterator_init(&rti,(struct ieee80211_radiotap_header *)pu8Payload,
+			               ppcapPacketHeader->len,NULL) < 0) return;
+  radiotap_t prd;
+  int current_signal_dbm=0;
+  int n=0;
+  while ((n = ieee80211_radiotap_iterator_next(&rti)) == 0) {
+    switch (rti.this_arg_index) {
+      case IEEE80211_RADIOTAP_FLAGS:
+        prd.m_nRadiotapFlags = *rti.this_arg;
+        break;
+      case IEEE80211_RADIOTAP_DBM_ANTSIGNAL:
+        current_signal_dbm = (int8_t)(*rti.this_arg);
+        break;
+    }
+  }
+
+  pu8Payload += u16HeaderLen + inter->header_lg;
+  int checksum_correct = (prd.m_nRadiotapFlags & 0x40) == 0;
+  if(!checksum_correct) inter->wrong_crc_cnt++;
+  inter->received_packet_cnt++;
+
+  //printf("dbm %d wrong %d rcv %d\n", current_signal_dbm,inter->wrong_crc_cnt,inter->received_packet_cnt);
+
+  process_payload_811(pu8Payload, bytes, checksum_correct);
+}
+
+/*****************************************************************************/
+void packet_handler_udp(u_char *user, const struct pcap_pkthdr *packethdr, const u_char *packetptr) {
 
   struct udphdr *udphdr;
   struct ip *iphdr;
@@ -73,6 +146,7 @@ int main(int argc, char *argv[]) {
   if (argc != 2) exit(-1);
   char *device = argv[1];
   interface_t inter;
+  memset(&inter,0,sizeof(inter));
 
   /* hack to add parameters to signal */
   signal(SIGINT,  (void (*)(int))sighandler);
@@ -87,17 +161,20 @@ int main(int argc, char *argv[]) {
   int count=0;
 
   int linktype;
+  pcap_handler packet_handler;
   bool ret=false;
-  if ((inter.ppcap = pcap_open_live(device, BUFSIZ, 1, 1000, errbuf)) != NULL) {
+  if ((inter.ppcap = pcap_open_live(device, 1600, 0, -1, errbuf)) != NULL) { // promiscous
     if ((linktype = pcap_datalink(inter.ppcap)) != PCAP_ERROR) {
       if (linktype == DLT_EN10MB) {
 	inter.header_lg = 14;
         sprintf(szProgram, "udp"); // udp port 53
+        packet_handler = packet_handler_udp;
 	ret = true;
       }
       if (linktype == DLT_IEEE802_11_RADIO) { // match on frametype, 1st byte of mac (ff) and portnumber 
-	inter.header_lg = 0x18; 
+	inter.header_lg = 0x18; //  length of standard IEEE802.11 data frame header is 24 bytes = 0x18
         sprintf(szProgram, "ether[0x00:2] == 0x08bf && ether[0x04:2] == 0xff%.2x", 0); // port = 0 TBC
+        packet_handler = packet_handler_811;
 	ret = true;
       }
     }

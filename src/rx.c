@@ -19,9 +19,9 @@ int param_data_packets_per_block = 8;
 
 /*****************************************************************************/
 typedef struct {
+  pcap_t *ppcap;
   int n80211HeaderLength;
   int selectable_fd;
-  pcap_t *ppcap;
 } monitor_interface_t;
 
 
@@ -44,7 +44,7 @@ typedef struct  {
   int m_nRate;
   int m_nAntenna;
   int m_nRadiotapFlags;
-} __attribute__((packed)) PENUMBRA_RADIOTAP_DATA;
+} __attribute__((packed)) radiotap_t;
 
 
 /*****************************************************************************/

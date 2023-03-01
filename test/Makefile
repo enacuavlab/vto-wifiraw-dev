@@ -13,11 +13,11 @@ reading: reading.o
 sending: sending.o
 	gcc -o $@ $^ $(LDFLAGS)
 
-sniffer: sniffer.o
-	gcc -o $@ $^ $(LDFLAGS)
-
-../radiotap-library/radiotap.o:
+../radiotap-library/radiotap.o: ../radiotap-library/radiotap.c
 	gcc -c -o $@ $< $(CPPFLAGS)
+
+sniffer: sniffer.o ../radiotap-library/radiotap.o
+	gcc -o $@ $^ $(LDFLAGS)
 
 rx: rx.o ../radiotap-library/radiotap.o
 	gcc -o $@ $^ $(LDFLAGS)

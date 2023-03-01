@@ -55,6 +55,14 @@ adap 0 rec 1fd0a blk 2a6b crc 1 len 1454
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
+sudo apt install -y gstreamer1.0-tools
+sudo apt install -y gstreamer1.0-plugins-base
+sudo apt install -y gstreamer1.0-libav
+sudo apt install -y gstreamer1.0-plugins-ugly
+sudo apt install -y gstreamer1.0-plugins-bad
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 https://tahoe-lafs.org/trac/zfec/
 https://github.com/tahoe-lafs/zfec.git
