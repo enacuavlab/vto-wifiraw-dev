@@ -14,6 +14,12 @@
 
 
 /*****************************************************************************/
+/*
+[ radiotap header  ]
+[ ieee80211 header ]
+[ payload ]
+*/
+
 static uint8_t uint8_taRadiotapHeader[] = {
   0x00, 0x00, // <-- radiotap version
   0x0c, 0x00, // <- radiotap header length

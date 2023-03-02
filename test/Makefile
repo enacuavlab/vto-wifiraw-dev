@@ -1,4 +1,4 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library
+CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -g
 LDFLAGS=-lpcap 
 
 
