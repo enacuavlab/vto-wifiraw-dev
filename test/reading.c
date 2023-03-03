@@ -9,120 +9,106 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include <errno.h>
 
-#define NAME_IN  "socket1"
-#define NAME_OUT "socket2"
+#define NAME_IN  "/tmp/socket1"
+#define NAME_OUT "/tmp/socket2"
+
+#define MAX_PACKET_SIZE 10
+//#define MAX_PACKET_SIZE 1510
+//#define MAX_PAYLOAD_SIZE (MAX_PACKET_SIZE - sizeof(radiotap_header) - sizeof(ieee80211_header) - sizeof(wblock_hdr_t) - crypto_aead_chacha20poly1305_ABYTES - sizeof(wpacket_hdr_t))
 
 /*
-SOCK_DGRAM to convert to SOCK_STREAM
-time socat OPEN:/dev/urandom,readbytes=12 UNIX-SENDTO:socket1
+time dd if=/dev/urandom of=/dev/shm/data.dump bs=1M count=1024
 
-SOCK_DGRAM
-time socat -x -d UNIX-RECVFROM:socket2 - | hexdump -C
 
-socat -x -d UNIX-RECVFROM:socket - 
-echo 'test' | socat - UNIX-SEND:socket
+STREAM
+socat "SYSTEM:dd if=/dev/shm/data.dump bs=1 count=1" UNIX:/tmp/socket1
+
+
+option 1
+--------
+STREAM -> DATAGRAM
+./reading
+
+DATAGRAM
+socat -x -d UNIX-RECV:/tmp/socket2 - | hexdump
+
+
+option2
+-------
+socat UNIX-LISTEN:/tmp/socket2 - | hexdump -C
+
 */
 
-const int  buf_size = 10;
 
 int main(int argc, char **argv) {
 
-//  int fd_in = socket(AF_UNIX, SOCK_DGRAM, 0);
-  int fd_in = socket(AF_UNIX, SOCK_STREAM, 0); // in order to enable partial receive
+  int msg_fd_in = 0;
+  int fd_in = socket(AF_UNIX, SOCK_STREAM, 0); // enable partial reading
   struct sockaddr_un name_in;
   name_in.sun_family = AF_UNIX;
   strcpy(name_in.sun_path, NAME_IN);
-  bind(fd_in, (struct sockaddr *) &name_in, sizeof(struct sockaddr_un));
-  
+  int ret = bind(fd_in, (struct sockaddr *) &name_in, sizeof(struct sockaddr_un));
+  printf("bind ret=%d errno=%d\n",ret,errno);fflush(stdout);
+
   int fd_out = socket(AF_UNIX, SOCK_DGRAM, 0);
   struct sockaddr_un name_out;
   name_out.sun_family = AF_UNIX;
   strcpy(name_out.sun_path, NAME_OUT);
 
+  char buf[MAX_PACKET_SIZE];
+  memset(buf,0x59,MAX_PACKET_SIZE);
 
-  fd_set readset;
-
-  char buf[buf_size];
-  memset(buf,0x59,buf_size);
-
-  int buf_available = buf_size;
-  int data_available=0;
-  int data_toread=0;
   int data_read=0;
+  int data_write=0;
 
   struct timespec begin;
   memset(&begin, 0, sizeof(begin));
 
-  char *ptr = buf;
+  ret=listen(fd_in, 2);
+  printf("listen=%d errno=%d\n",ret,errno);fflush(stdout);
 
-  while (true) {
+  while(true) {
 
-    FD_ZERO(&readset);
-    FD_SET(fd_in, &readset);
+    printf("while\n");fflush(stdout);
 
-    int n = select(fd_in+1, &readset, NULL, NULL, NULL);
+    msg_fd_in=accept(fd_in,NULL,NULL);
+    printf("accept=%d errno=%d\n",msg_fd_in,errno);fflush(stdout);
 
-    if(n == 0) break;
-    if(FD_ISSET(fd_in, &readset)) {
-      ioctl(fd_in,FIONREAD,&data_available);
+    data_read=1;
+    while (data_read != 0) { // sender no more connected
 
-      while (data_available>0) {
+      data_read = recv(msg_fd_in, buf, sizeof(buf), 0);  
+      printf("data_read=%d errno=%d\n",data_read, errno);fflush(stdout);
 
-	if (buf_available > 0) {
-
-	  printf("data_available (%d)\n",data_available);
-
-          if (data_available >= buf_available) data_toread = buf_available;
-	  else data_toread = buf_available - data_available; 
-
-	  if (data_toread > data_available) { // set padding condition
-	
-	     data_toread = data_available;
-
-	     ptr = buf;
-	     buf_available = data_toread;
-	     data_available = data_toread;
-
-	  } 
-
-          data_read = recv(fd_in, ptr, data_toread, 0);
-	  printf("data_read = %d\n",data_read);fflush(stdout);
-          if (begin.tv_sec==0) clock_gettime(CLOCK_REALTIME, &begin);
-
-	  ptr += data_read;
-          buf_available  -= data_read;
-          data_available -= data_read;
-
-	} 
-	
-	if (buf_available == 0) {
-
-          int ret = sendto(fd_out, &buf, data_read, 0, &name_out, sizeof(struct sockaddr_un));
-
-	  printf("(");
-          for (int i=0;i<data_read;i++) printf("%02x  ",buf[i] & 0xff);
-	  printf(")\n");
-
-	  buf_available = buf_size;
-	  memset(&buf,0x57,sizeof(buf));
-
-	  if (ret < 0) exit(-1);
-	}
+      if (data_read != 0) {
+        if (begin.tv_sec==0) clock_gettime(CLOCK_MONOTONIC, &begin);
+      
+        data_write = sendto(fd_out, buf, sizeof(buf), 0, &name_out, sizeof(struct sockaddr_un));
+        printf("data_write=%d errno=%d\n",data_write, errno);fflush(stdout);
+      
+        printf("(");
+        for (int i=0;i<data_read;i++) printf("%02x  ",buf[i] & 0xff);
+        printf(")\n");
+      
+        memset(&buf,0x57,sizeof(buf));
       }
     }
+    close(msg_fd_in);
   }
 
+  close(fd_in);
+  close(fd_out);
+  unlink(NAME_IN);
+}
+
 /*
-	  clock_gettime(CLOCK_REALTIME, &begin);
-          double nanoseconds = begin.tv_sec * 1e9 + begin.tv_sec;
-          printf("(%f)",nanoseconds);
+	  clock_gettime(CLOCK_MONOTONIC, &begin);
+          double milliseconds = tm.tv_sec * 1000LL + tm.tv_nsec / 1000000;
+          printf("(%f)",milliseconds);
 
           printf("(%d)(%d)",data_toread,data_read);fflush(stdout);
           for (int i=0;i<buf_size;i++) printf("%u ",buf[i]);
           printf("\n");
 */ 
-  close(fd_in);
-  close(fd_out);
-  unlink(NAME_IN);
-}
