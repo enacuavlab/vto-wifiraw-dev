@@ -23,20 +23,29 @@ time dd if=/dev/urandom of=/dev/shm/data.dump bs=1M count=1024
 
 
 STREAM
-socat "SYSTEM:dd if=/dev/shm/data.dump bs=1 count=1" UNIX:/tmp/socket1
+rm /tmp/socket1
+socat "SYSTEM:dd if=/dev/shm/data.dump bs=1 count=1" UNIX-CONNECT:/tmp/socket1
+(socat "SYSTEM:dd if=/dev/shm/data.dump bs=1 count=1" UNIX:/tmp/socket1)
+(creates /tmp/socket1 or uses existing one)
 
 
 option 1
 --------
 STREAM -> DATAGRAM
+rm /tmp/socket1
 ./reading
 
 DATAGRAM
 socat -x -d UNIX-RECV:/tmp/socket2 - | hexdump
+(start receiving at : 1 + MAX_PACKET_SIZE)
+or
+socat -x -d UNIX-RECVFROM:/tmp/socket2 - | hexdump
+(receive first packet MAX_PACKET_SIZE)
 
 
 option2
 -------
+STREAM
 socat UNIX-LISTEN:/tmp/socket2 - | hexdump -C
 
 */
