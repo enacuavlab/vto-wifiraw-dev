@@ -73,7 +73,6 @@ int main(int argc, char **argv) {
   int data_sent;
   int data_sum=0;
   double millsec;
-
   int sum_sent=0,sum_read=0;
 
   while (true) {
@@ -107,5 +106,4 @@ int main(int argc, char **argv) {
 
   close(fd_in);
   close(fd_out);
-//  unlink(NAME_OUT);
 }
