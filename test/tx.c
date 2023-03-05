@@ -10,6 +10,7 @@
 
 /*****************************************************************************/
 #define MAX_PACKET_LENGTH 4192
+#define MAX_USER_PACKET_LENGTH 1450
 #define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
 
 
@@ -17,7 +18,10 @@
 /*
 [ radiotap header  ]
 [ ieee80211 header ]
-[ payload ]
+[ payload 
+    [ payload_header_t ]
+]
+
 */
 
 static uint8_t uint8_taRadiotapHeader[] = {
@@ -57,6 +61,11 @@ typedef struct {
 } __attribute__((packed)) wifi_packet_header_t;
 
 
+typedef struct {
+    uint32_t data_length;
+} __attribute__((packed)) payload_header_t;
+
+
 /*****************************************************************************/
 int packet_header_init(uint8_t *packet_header) {
 
@@ -82,7 +91,6 @@ void init(char *name,mon_interface_t *interface) {
   char szErrbuf[PCAP_ERRBUF_SIZE];
   szErrbuf[0] = '\0';
 
-  szErrbuf[0] = '\0';
   interface->ppcap = pcap_open_live(name, 100, 0, 20, szErrbuf);
   if (interface->ppcap == NULL) {
     fprintf(stderr, "Unable to open interface %s in pcap: %s\n", name, szErrbuf);
@@ -103,9 +111,18 @@ int main(int argc, char *argv[]) {
 
   uint8_t packet_transmit_buffer[MAX_PACKET_LENGTH];
   size_t packet_header_length = 0;
-  packet_header_length = packet_header_init(packet_transmit_buffer);
+  packet_header_length = packet_header_init(packet_transmit_buffer); // set headers in packet_transmit_buffer
 
-  int param_packet_length = 1450;
+  int param_data_packets_per_block = 8;
+  packet_buffer_t block[param_data_packets_per_block*MAX_PACKET_LENGTH]; // one block with several packets
+  memset(block,0,sizeof(block));
+
+  int param_packet_length = 1024;
+  int param_min_packet_length = 0;
+
+  int inl;
+  int pcnt = 0;
+  int curr_pb = 0;
 
   for(;;) {
     fd_set rfds;
@@ -115,14 +132,38 @@ int main(int argc, char *argv[]) {
     select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
     if (FD_ISSET(STDIN_FILENO, &rfds)) {
 
-      read(STDIN_FILENO, packet_transmit_buffer + packet_header_length, param_packet_length);
-      int plen = sizeof(wifi_packet_header_t) + packet_header_length + param_packet_length;
+      packet_buffer_t *pb = block;
+      if(pb->len == 0) pb->len += sizeof(payload_header_t);
 
-      int r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
-      if (r != plen) {
-        pcap_perror(interface.ppcap, "Trouble injecting packet");
-        exit(1);
+      inl=read(STDIN_FILENO, pb->data + pb->len, param_packet_length - pb->len);
+      if(inl < 0 || inl > param_packet_length-pb->len) exit(-1);
+      if(inl == 0) {
+        usleep(1e5);
+        continue;
+      }
+
+      pb->len += inl;
+
+      if(pb->len >= param_min_packet_length) {
+
+        payload_header_t *ph = (payload_header_t*)pb->data;
+	ph->data_length = pb->len - sizeof(payload_header_t); // set variable payload size in payload header
+	pcnt++;
+
+	if (curr_pb == param_data_packets_per_block-1) {
+
+          int plen = sizeof(wifi_packet_header_t) + packet_header_length + param_packet_length;
+
+          int r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
+          if (r != plen) {
+             pcap_perror(interface.ppcap, "Trouble injecting packet");
+	  }
+
+	  curr_pb=0;
+
+        } else curr_pb++;
       }
     }
+    if(pcnt % 128 == 0) printf("%d data packets sent\r", pcnt);
   }
 }
