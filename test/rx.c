@@ -47,6 +47,11 @@ typedef struct  {
 } __attribute__((packed)) PENUMBRA_RADIOTAP_DATA;
 
 
+typedef struct {
+    uint32_t data_length;
+} __attribute__((packed)) payload_header_t;
+
+
 /*****************************************************************************/
 void init(char *name, monitor_interface_t *interface) {
 
@@ -109,9 +114,14 @@ void process_payload(int *seq,uint8_t *data, size_t data_len, int crc_correct) {
 
 //  int param_packet_length = 1024;
 
-  data += 4;
-  data_len -= 4;
-  write(STDOUT_FILENO, data, data_len);
+  payload_header_t *ph = (payload_header_t*)data;
+//  printf("(%d)\n",ph->data_length);
+  data += sizeof(payload_header_t);
+  write(STDOUT_FILENO, data, ph->data_length);
+
+//  data += 4;
+//  data_len -= 4;
+//  write(STDOUT_FILENO, data, data_len);
 
 
   fflush(stdout);

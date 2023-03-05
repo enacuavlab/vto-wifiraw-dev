@@ -123,7 +123,8 @@ int main(int argc, char *argv[]) {
     pkt->data = malloc(MAX_PACKET_LENGTH);
   }
 
-  int param_packet_length = 1024;
+//  int param_packet_length = 1024;
+  int param_packet_length = 1450;
   int param_min_packet_length = 0;
 
   int inl;
