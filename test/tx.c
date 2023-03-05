@@ -113,16 +113,24 @@ int main(int argc, char *argv[]) {
   size_t packet_header_length = 0;
   packet_header_length = packet_header_init(packet_transmit_buffer); // set headers in packet_transmit_buffer
 
+
+  int i,r; 
   int param_data_packets_per_block = 8;
-  packet_buffer_t block[param_data_packets_per_block*MAX_PACKET_LENGTH]; // one block with several packets
-  memset(block,0,sizeof(block));
+  packet_buffer_t pkts[param_data_packets_per_block]; // on block with several packets
+  for (i=0;i<param_data_packets_per_block;i++) {
+    packet_buffer_t *pkt = &pkts[i];
+    memset(pkt,0,sizeof(packet_buffer_t));
+    pkt->data = malloc(MAX_PACKET_LENGTH);
+  }
 
   int param_packet_length = 1024;
   int param_min_packet_length = 0;
 
   int inl;
+  int plen;
   int pcnt = 0;
   int curr_pb = 0;
+  int seq_nr=0;
 
   for(;;) {
     fd_set rfds;
@@ -132,7 +140,7 @@ int main(int argc, char *argv[]) {
     select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
     if (FD_ISSET(STDIN_FILENO, &rfds)) {
 
-      packet_buffer_t *pb = block;
+      packet_buffer_t *pb = &pkts[curr_pb];
       if(pb->len == 0) pb->len += sizeof(payload_header_t);
 
       inl=read(STDIN_FILENO, pb->data + pb->len, param_packet_length - pb->len);
@@ -152,18 +160,25 @@ int main(int argc, char *argv[]) {
 
 	if (curr_pb == param_data_packets_per_block-1) {
 
-          int plen = sizeof(wifi_packet_header_t) + packet_header_length + param_packet_length;
+	  for(i=0;i<param_data_packets_per_block;i++) {
 
-          int r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
-          if (r != plen) {
-             pcap_perror(interface.ppcap, "Trouble injecting packet");
+            wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_length);
+            wph->sequence_number = seq_nr;
+
+            memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts[i].data, param_packet_length);
+            plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
+
+            r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
+            if (r != plen) pcap_perror(interface.ppcap, "Trouble injecting packet");
+
+	    seq_nr++;
+	    pkts[i].len=0;
 	  }
-
 	  curr_pb=0;
-
         } else curr_pb++;
       }
+
     }
-    if(pcnt % 128 == 0) printf("%d data packets sent\r", pcnt);
+    if(pcnt % 128 == 0) printf("%d data packets sent\n", pcnt);
   }
 }

@@ -95,19 +95,25 @@ void init(char *name, monitor_interface_t *interface) {
 /*****************************************************************************/
 void process_payload(int *seq,uint8_t *data, size_t data_len, int crc_correct) {
 
-//  wifi_packet_header_t *wph;
+  wifi_packet_header_t *wph;
 
-//  wph = (wifi_packet_header_t*)data;
+  wph = (wifi_packet_header_t*)data;
   data += sizeof(wifi_packet_header_t);
   data_len -= sizeof(wifi_packet_header_t);
 
 //  printf("PKT %d %ld\n",*seq,data_len);
 
   (*seq)++;
-//  int block_num = wph->sequence_number / param_data_packets_per_block;
+  int block_num = wph->sequence_number / param_data_packets_per_block;
 //  printf("rec %x blk %x crc %d len %ld\n", wph->sequence_number, block_num, crc_correct, data_len);
 
+//  int param_packet_length = 1024;
+
+  data += 4;
+  data_len -= 4;
   write(STDOUT_FILENO, data, data_len);
+
+
   fflush(stdout);
 }
 
