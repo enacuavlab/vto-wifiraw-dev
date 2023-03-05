@@ -105,6 +105,8 @@ void init(char *name,mon_interface_t *interface) {
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+  setpriority(PRIO_PROCESS, 0, -10);
+
   mon_interface_t interface;
   init(argv[1],&interface);
 

@@ -186,6 +186,8 @@ void process_packet(int *seq,monitor_interface_t *interface,wifi_adapter_rx_stat
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+  setpriority(PRIO_PROCESS, 0, -10);
+
   monitor_interface_t interface;
   wifi_adapter_rx_status_t rx_status;
 
@@ -195,13 +197,13 @@ int main(int argc, char *argv[]) {
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
+
     FD_SET(interface.selectable_fd, &readset);
 
     int n = select(interface.selectable_fd+1, &readset, NULL, NULL, NULL);
 
     if(n == 0) break;
     if(FD_ISSET(interface.selectable_fd, &readset)) {
-      printf("INBOUND\n");fflush(stdout);
       process_packet(&seq,&interface, &rx_status);
     }
   }

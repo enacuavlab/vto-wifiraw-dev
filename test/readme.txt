@@ -19,7 +19,8 @@ net.unix.max_dgram_qlen = 512
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 test /
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1940,height=1080 ! timeoverlay ! x264enc tune=zerolatency byte-stream=true bitrate=$BITES_RATE ! fdsink | sudo ./tx $node
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1940,height=1080 ! timeoverlay ! tee name=t t. ! queue ! autovideosink sync=false t. ! queue ! x264enc tune=zerolatency byte-stream=true bitrate=$BITES_RATE ! fdsink | sudo ./tx $node
+
 
 test/
 sudo ./rx $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
