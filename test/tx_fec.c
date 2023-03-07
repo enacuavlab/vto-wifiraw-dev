@@ -130,10 +130,12 @@ int main(int argc, char *argv[]) {
   int param_min_packet_length = 0;
 
   int param_data_packets_per_block = 8;
+//  int param_fec_packets_per_block = 0; 
   int param_fec_packets_per_block = 4; 
 
   int i;
-  fec_t* fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block); 
+  fec_t* fec_p;
+  if (param_fec_packets_per_block) fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block); 
   int sz=MAX_USER_PACKET_LENGTH;
   const unsigned char *blocks[param_data_packets_per_block];
   for (i=0;i<param_data_packets_per_block;i++) blocks[i]=malloc(sz);
@@ -191,8 +193,8 @@ int main(int argc, char *argv[]) {
 
 	  uint8_t *ptr=NULL;
 	  bool interl = true;
-	  int di = 0,fi = 0; // send data and FEC packets interleaved
-          while ((di < param_data_packets_per_block) && (fi < param_fec_packets_per_block)) {
+	  int di = 0,fi = 0; // send data and fec interleaved
+          while ((di < param_data_packets_per_block) || (fi < param_fec_packets_per_block)) {
 
             if (di < param_data_packets_per_block) {
 	      if (((fi < param_fec_packets_per_block) && (interl)) || (fi == param_fec_packets_per_block)) { 
@@ -201,8 +203,7 @@ int main(int argc, char *argv[]) {
 	        di++;
 	      }
 	    }
-
-            if (fi < param_fec_packets_per_block) {
+            if ((param_fec_packets_per_block) && (fi < param_fec_packets_per_block)) {
 	      if (((di < param_data_packets_per_block) && (!interl)) || (di == param_data_packets_per_block)) { 
                 ptr = outblocks[fi];
 	        fi++;
