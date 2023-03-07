@@ -1,6 +1,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
-
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -129,16 +129,19 @@ int main(int argc, char *argv[]) {
   int param_packet_length = 1450;
   int param_min_packet_length = 0;
 
-  int i,r; 
   int param_data_packets_per_block = 8;
   int param_fec_packets_per_block = 4; 
-  fec_t* fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block); 
-  const uint8_t *src[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
-  uint8_t **fecs = malloc(param_fec_packets_per_block * MAX_FEC_PAYLOAD);
-  size_t num_block_nums=param_fec_packets_per_block;
-  const unsigned block_num[num_block_nums];
-  size_t sz = param_packet_length;
 
+  int i;
+  fec_t* fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block); 
+  int sz=MAX_USER_PACKET_LENGTH;
+  const unsigned char *blocks[param_data_packets_per_block];
+  for (i=0;i<param_data_packets_per_block;i++) blocks[i]=malloc(sz);
+  unsigned char *outblocks[param_fec_packets_per_block];
+  for (i=0;i<param_fec_packets_per_block;i++) outblocks[i]=malloc(sz);
+  int num=2;
+  unsigned block_nums[] = {4, 7};
+  
 
   packet_buffer_t pkts[param_data_packets_per_block]; // one block with several packets
   for (i=0;i<param_data_packets_per_block;i++) {
@@ -147,7 +150,7 @@ int main(int argc, char *argv[]) {
     pkt->data = malloc(MAX_PACKET_LENGTH);
   }
 
-  int inl;
+  int inl,r;
   int plen;
   int pcnt = 0;
   int curr_pb = 0;
@@ -182,26 +185,41 @@ int main(int argc, char *argv[]) {
 	if (curr_pb == param_data_packets_per_block-1) { // transmit block
 
           if (param_fec_packets_per_block) {
-	 
-            for(i=0; i<param_data_packets_per_block; ++i) src[i] = pkts[i].data;
-	    fec_encode(fec_p, src, fecs, block_num, num_block_nums, sz);
-
+            for(i=0; i<param_data_packets_per_block; ++i) blocks[i] = pkts[i].data;
+	    fec_encode(fec_p, blocks, outblocks, block_nums, num, sz);
           }		  
 
-	  for(i=0;i<param_data_packets_per_block;i++) {
+	  uint8_t *ptr=NULL;
+	  bool interl = true;
+	  int di = 0,fi = 0; // send data and FEC packets interleaved
+          while ((di < param_data_packets_per_block) && (fi < param_fec_packets_per_block)) {
 
+            if (di < param_data_packets_per_block) {
+	      if (((fi < param_fec_packets_per_block) && (interl)) || (fi == param_fec_packets_per_block)) { 
+	        ptr = pkts[di].data;
+	        pkts[di].len=0;
+	        di++;
+	      }
+	    }
+
+            if (fi < param_fec_packets_per_block) {
+	      if (((di < param_data_packets_per_block) && (!interl)) || (di == param_data_packets_per_block)) { 
+                ptr = outblocks[fi];
+	        fi++;
+	      }
+	    }
+
+            memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), ptr, param_packet_length);
             wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_length);
             wph->sequence_number = seq_nr;
-
-            memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts[i].data, param_packet_length);
             plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
-
             r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
             if (r != plen) pcap_perror(interface.ppcap, "Trouble injecting packet");
-
 	    seq_nr++;
-	    pkts[i].len=0;
+
+	    interl = !interl; // toggle
 	  }
+
 	  curr_pb=0;
         } else curr_pb++;
       }
