@@ -38,8 +38,6 @@
 */
 #include <assert.h>
 
-fec_t* fec_p;
-
 /*************************************************************************************************************/
 /* FROM wifibroadcast.h */
 
@@ -467,7 +465,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
             //look for missing DATA and replace them with good FECs
             while(di < param_data_packets_per_block && fi < param_fec_packets_per_block) {
                 //if this data is fine we go to the next
-                if (data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
+                if(data_pkgs[di]->valid && data_pkgs[di]->crc_correct) {
                     di++;
                     continue;
                 }
@@ -519,49 +517,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
             }
 
             //decode data and write it to STDOUT
-/*
-            const unsigned char *inpkts[param_fec_packets_per_block];
-            for (i=0;i<param_fec_packets_per_block;i++) inpkts[i]=malloc(MAX_USER_PACKET_LENGTH);
-            unsigned char *outpkts[param_data_packets_per_block - param_fec_packets_per_block];
-            for (i=0;i<param_fec_packets_per_block;i++) outpkts[i]=malloc(MAX_USER_PACKET_LENGTH);
-            unsigned indexes[param_fec_packets_per_block];
-
-            for(int i=0; i < param_fec_packets_per_block; i++) {
-              if(rx_ring[ring_idx].fragment_map[i]) {
-                inpkts[i] = rx_ring[ring_idx].fragments[i];
-                inpkts[i] = data_pkgs[i];
-                indexes[i] = i;
-              } else {
-                for(;j < param_data_packets_per_block; j++) {
-                  if(rx_ring[ring_idx].fragment_map[j]) {
-                    inpkts[i] = rx_ring[ring_idx].fragments[j];
-                    outpkts[ob_idx++] = rx_ring[ring_idx].fragments[i];
-                    inpkts[i] = data_pkgs[j];
-                    outpkts[ob_idx++] =data_pkgs[i]; 
-                    indexes[i] = j;
-                    j++;
-                    break;
-                  }
-                }
-              }
-            }
-*/
-
-	    unsigned char b0[8], b1[8], b2[8], b3[8], b4[8], b5[8];
-            const unsigned char *inpkts[4] = {b3, b4, b2, b5};
-            unsigned char *outpkts[4] = {b0, b1, b2, b3};
-            unsigned indexes[] = {1, 2, 3, 0}; /* assert ((index[row] >= code->k) || (index[row] == row)); If the block whose number is i is present, then it is required to be in the i'th element. */
-
-	    fec_t *const fec_p2 = fec_new(4, 8);
-
-	    fec_decode(fec_p2, inpkts, outpkts, indexes, 8);
-	    printf("fec_decode\n");fflush(stdout);
-
-
-//            fec_decode((unsigned int) param_packet_length, data_blocks, param_data_packets_per_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
-
-
-            
+            fec_decode((unsigned int) param_packet_length, data_blocks, param_data_packets_per_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
             for(i=0; i<param_data_packets_per_block; ++i) {
                 payload_header_t *ph = (payload_header_t*)data_blocks[i];
 
@@ -570,7 +526,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
                     if(ph->data_length > param_packet_length)
                         ph->data_length = param_packet_length;
 
-//                    write(STDOUT_FILENO, data_blocks[i] + sizeof(payload_header_t), ph->data_length);
+                    write(STDOUT_FILENO, data_blocks[i] + sizeof(payload_header_t), ph->data_length);
 		    fflush(stdout);
                 }
             }
@@ -878,9 +834,7 @@ int main(int argc, char *argv[])
 	}
 */
 
-//	fec_init();
-        fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
-
+	fec_init();
 
 
 //	rx_status = status_memory_open();
