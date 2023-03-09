@@ -546,16 +546,15 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
               }
             }
 */
+            const unsigned char *inpkts[param_fec_packets_per_block];
 
-	    unsigned char b0[8], b1[8], b2[8], b3[8], b4[8], b5[8];
-            const unsigned char *inpkts[4] = {b3, b4, b2, b5};
-            unsigned char *outpkts[4] = {b0, b1, b2, b3};
-            unsigned indexes[] = {1, 2, 3, 0}; /* assert ((index[row] >= code->k) || (index[row] == row)); If the block whose number is i is present, then it is required to be in the i'th element. */
+            unsigned char *outpkts[param_data_packets_per_block - param_fec_packets_per_block];
 
-	    fec_t *const fec_p2 = fec_new(4, 8);
+            unsigned indexes[param_fec_packets_per_block];
 
-	    fec_decode(fec_p2, inpkts, outpkts, indexes, 8);
-	    printf("fec_decode\n");fflush(stdout);
+            // option A nothing to decode, outpkts unchanged
+            unsigned indexesA[] = {0, 1, 2, 3}; // (index[row] == row)
+            fec_decode(fec_p, inpkts, outpkts, indexesA, 8);
 
 
 //            fec_decode((unsigned int) param_packet_length, data_blocks, param_data_packets_per_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
@@ -570,7 +569,7 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct, block_buff
                     if(ph->data_length > param_packet_length)
                         ph->data_length = param_packet_length;
 
-//                    write(STDOUT_FILENO, data_blocks[i] + sizeof(payload_header_t), ph->data_length);
+                    write(STDOUT_FILENO, data_blocks[i] + sizeof(payload_header_t), ph->data_length);
 		    fflush(stdout);
                 }
             }
