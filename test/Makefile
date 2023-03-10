@@ -4,7 +4,7 @@ LDFLAGS=-lpcap
 
 
 #all: reading sending sniffer tx rx tx_fec
-all: test_zfec tx_zfec rx_fec tx rx
+all: test_zfec tx_zfec rx_zfec
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -31,8 +31,8 @@ tx: tx.o ../radiotap-library/radiotap.o
 	gcc -o $@ $^ $(LDFLAGS)
 
 #rx_fec: rx_fec.o ../radiotap-library/radiotap.o ../EZ-WifiBroadcast/wifibroadcast/fec.o
-rx_fec: rx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
-	gcc -o $@ $^ $(LDFLAGS)
+#rx_fec: rx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+#	gcc -o $@ $^ $(LDFLAGS)
 
 rx_zfec: rx_zfec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
 	gcc -o $@ $^ $(LDFLAGS)

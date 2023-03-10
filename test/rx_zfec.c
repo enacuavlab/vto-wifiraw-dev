@@ -15,7 +15,7 @@
 
 /*****************************************************************************/
 int param_data_packets_per_block = 8;
-int param_fec_packets_per_block = 8;
+int param_fec_packets_per_block = 4;
 int param_block_buffers = 1;
 int param_packet_length = 1450;
 
@@ -145,7 +145,8 @@ void init(char *name, monitor_interface_t *interface, myfec_t *myfec) {
     for (i=0;i<param_fec_packets_per_block;i++) inpkts[i]=malloc(myfec->sz);
     unsigned char *outpkts[param_fec_packets_per_block];
     for (i=0;i<param_fec_packets_per_block;i++) outpkts[i]=malloc(myfec->sz);
-    unsigned indexes[] = {4, 7};
+    unsigned indexes[param_fec_packets_per_block];
+
     packet_buffer_t *data_pkgs[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
     packet_buffer_t *fec_pkgs[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
     uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
@@ -340,8 +341,10 @@ void process_payload(myfec_t *myfec,int *seq,uint8_t *data, size_t data_len, int
       }
 
       //decode data and write it to STDOUT
+      // option A nothing to decode, outpkts unchanged
+      unsigned indexesA[] = {0, 1, 2, 3}; // (index[row] == row)
 //      fec_decode((unsigned int) param_packet_length, data_blocks, param_data_packets_per_block, fec_blocks, fec_block_nos, erased_blocks, nr_fec_blocks);
-//      fec_decode(myfec->fec_p, myfec->inpkts, myfec->outpkts, myfec->indexes, myfec->sz);
+      fec_decode(myfec->fec_p, myfec->inpkts, myfec->outpkts, indexesA, myfec->sz);
 
       for(i=0; i<param_data_packets_per_block; ++i) {
         payload_header_t *ph = (payload_header_t*)myfec->data_blocks[i];
@@ -351,8 +354,8 @@ void process_payload(myfec_t *myfec,int *seq,uint8_t *data, size_t data_len, int
           if(ph->data_length > param_packet_length)
             ph->data_length = param_packet_length;
 
-          write(STDOUT_FILENO, (char *)(myfec->data_blocks[i]) + sizeof(payload_header_t), ph->data_length);
-          fflush(stdout);
+//          write(STDOUT_FILENO, (char *)(myfec->data_blocks[i]) + sizeof(payload_header_t), ph->data_length);
+//          fflush(stdout);
         }
       }
 

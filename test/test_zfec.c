@@ -31,6 +31,8 @@ int main(int argc, char *argv[]) {
 
   // option A nothing to decode, outpkts unchanged
   unsigned indexesA[] = {0, 1, 2, 3}; // (index[row] == row)
+  for (int row=0; row<4; row++)
+    printf("(%d)(%d)\n",(indexesA[row] >= 4),(indexesA[row] == row));
   fec_decode(fec, inpkts, outpkts, indexesA, 8);
 
   // option B 1 change 
