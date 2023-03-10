@@ -3,8 +3,8 @@ CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -I../zfec/zfec -g
 LDFLAGS=-lpcap 
 
 
-#all: reading sending sniffer tx rx tx_fec
-all: test_zfec tx_zfec rx_zfec
+all: reading sending sniffer tx rx tx_fec
+#all: test_zfec tx_zfec rx_zfec
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
