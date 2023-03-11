@@ -6,7 +6,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-
 #include "radiotap_iter.h"
 
 /*****************************************************************************/
@@ -30,6 +29,7 @@ typedef struct {
   uint32_t sequence_number;
 } __attribute__((packed)) wifi_packet_header_t;
 
+
 typedef struct  {
   int m_nChannel;
   int m_nChannelFlags;
@@ -37,6 +37,7 @@ typedef struct  {
   int m_nAntenna;
   int m_nRadiotapFlags;
 } __attribute__((packed)) PENUMBRA_RADIOTAP_DATA;
+
 
 typedef struct {
     uint32_t data_length;
@@ -48,25 +49,22 @@ int param_data_packets_per_block = 8;
 /*****************************************************************************/
 void process_payload(uint8_t *data, size_t data_len, int crc_correct) {
 
-  printf("crc %d len %ld\n", crc_correct, data_len);
+  wifi_packet_header_t *wph = (wifi_packet_header_t*)data;
+  int block_num = wph->sequence_number / param_data_packets_per_block;
+//  printf("seq (%d)\n", wph->sequence_number);
 
-  wifi_packet_header_t *wph;
-  wph = (wifi_packet_header_t*)data;
+  data += sizeof(wifi_packet_header_t);
 
-  printf("wph->sequence_number %d\n",wph->sequence_number);
+  payload_header_t *ph = (payload_header_t*)data;
+//  printf("length (%d)\n", ph->data_length);
 
-//  data += sizeof(wifi_packet_header_t);
-//  data_len -= sizeof(wifi_packet_header_t);
+  uint8_t *ptr = data + sizeof(wifi_packet_header_t) + sizeof(payload_header_t) + 8;
 
-//  int block_num = wph->sequence_number / param_data_packets_per_block;
-//  printf("rec %x blk %x crc %d len %ld\n", wph->sequence_number, block_num, crc_correct, data_len);
+//  for (int i=0;i<ph->data_length-1;i++) 
+//    printf("(%d)",ptr[i]);
 
-//  payload_header_t *ph = (payload_header_t*)data;
-//  printf("(%d)\n",ph->data_length);
-//  printf("(%d)\n",data[0]);
-//  data += sizeof(payload_header_t);
-//  write(STDOUT_FILENO, data, ph->data_length);
-//  fflush(stdout);
+  write(STDOUT_FILENO, ptr, ph->data_length-1);
+  fflush(stdout);
 }
 
 
@@ -78,11 +76,20 @@ void process_packet(process_packet_t *param) {
   uint8_t *puint8Payload = payloadBuffer;
 
   int retval = pcap_next_ex(param->ppcap, &ppcapPacketHeader, (const u_char**)&puint8Payload);
-  if (retval < 0) exit(-1);
+  if (retval < 0) {
+    if (strcmp("The interface went down",pcap_geterr(param->ppcap)) == 0) {
+      fprintf(stderr, "rx: The interface went down\n");
+      exit(9);
+    } else {
+      fprintf(stderr, "rx: %s\n", pcap_geterr(param->ppcap));
+      exit(2);
+    }
+  }
   if (retval != 1) return;
 
   int u16HeaderLen = (puint8Payload[2] + (puint8Payload[3] << 8));
   if (ppcapPacketHeader->len < (u16HeaderLen + param->n80211HeaderLength)) return;
+
   int bytes = ppcapPacketHeader->len - (u16HeaderLen + param->n80211HeaderLength);
   if (bytes < 0) return;
 
@@ -92,8 +99,8 @@ void process_packet(process_packet_t *param) {
                     ppcapPacketHeader->len,
 		    NULL) < 0) return;
 
-  int n;
   PENUMBRA_RADIOTAP_DATA prd;
+  int n;
   while ((n = ieee80211_radiotap_iterator_next(&rti)) == 0) {
     switch (rti.this_arg_index) {
 
@@ -123,10 +130,10 @@ int main(int argc, char *argv[]) {
 
   process_packet_t param;
 
-  char szErrbuf[PCAP_ERRBUF_SIZE];szErrbuf[0] = '\0';
+  char szErrbuf[PCAP_ERRBUF_SIZE]; szErrbuf[0] = '\0';
   param.ppcap = pcap_open_live(argv[1], 1600, 0, -1, szErrbuf);
   if (param.ppcap == NULL) exit(-1);
-  if(pcap_setnonblock(param.ppcap, 0, szErrbuf) < 0) exit(-1);
+  if(pcap_setnonblock(param.ppcap, 1, szErrbuf) < 0) exit(-1);
 
   char szProgram[512];
   int port = 0; /* 0-255 */
@@ -139,15 +146,17 @@ int main(int argc, char *argv[]) {
   struct bpf_program bpfprogram;
   if (pcap_compile(param.ppcap, &bpfprogram, szProgram, 1, 0) == -1) exit(-1);
   if (pcap_setfilter(param.ppcap, &bpfprogram) == -1) exit(-1);
-  pcap_freecode(&bpfprogram);
+
   int fd = pcap_get_selectable_fd(param.ppcap);
-  if(fd <=0) exit(-1);
 
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
+
     FD_SET(fd, &readset);
+
     int n = select(fd+1, &readset, NULL, NULL, NULL);
+
     if(n == 0) break;
     if(FD_ISSET(fd, &readset)) {
       process_packet(&param);

@@ -71,12 +71,11 @@ int main(int argc, char *argv[]) {
   memcpy(puint8_t, uint8_taIeeeHeader_data, sizeof (uint8_taIeeeHeader_data));
   puint8_t += sizeof (uint8_taIeeeHeader_data);
   int packet_header_length =  puint8_t - packet_header;
-
-  printf("packet_header_length:(%d)\n",packet_header_length);
-
   wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_length);
   uint8_t *wifi_packet_data = packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t);
-  uint8_t plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
+  payload_header_t *pay_h = (payload_header_t *) (wifi_packet_data);
+  uint8_t  *pay = pay_h + sizeof(payload_header_t);
+  int plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
 
   in_packet_buffer_t pkts_in[param_data_packets_per_block];
   for (int i=0;i<param_data_packets_per_block;i++) {
@@ -110,9 +109,9 @@ int main(int argc, char *argv[]) {
 	if (curr_pb == param_data_packets_per_block) nbpkts = param_data_packets_per_block;
 	else nbpkts = curr_pb+1;
         for (int i=0;i<nbpkts;i++) {
-  	  printf("(%d)(%ld)\n", i,pkts_in[i].len);
 	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
-          memcpy(wifi_packet_data, pkts_in[i].data, pkts_in[i].len);   // copy variable payload data
+	  pay_h->data_length = pkts_in[i].len;                         // set data length in payload header
+          memcpy(pay, pkts_in[i].data, pkts_in[i].len);                // copy variable payload data
 	  ret = pcap_inject(ppcap, packet_transmit_buffer, plen);      // inject all transmit  buffer
 	  seq_nr++;
 	  pkts_in[i].len = 0;
@@ -122,41 +121,3 @@ int main(int argc, char *argv[]) {
     }
   }
 }
-
-
-
-/*
-    if (FD_ISSET(STDIN_FILENO, &rfds)) {
-
-      in_packet_buffer_t *pb = &pkts_out[curr_pb];
-      if(pb->len == 0) pb->len += sizeof(payload_header_t); // first use of this packet, make room for header containing variable payload data length 
-
-      inl=read(STDIN_FILENO, pb->data + pb->len, param_packet_length - pb->len);
-      if(inl < 0 || inl > param_packet_length-pb->len) exit(-1);
-      if(inl == 0) { usleep(1e5); continue; }
-
-      pb->len += inl;
-      if(pb->len >= param_min_packet_length) {
-
-        payload_header_t *ph = (payload_header_t*)pb->data;
-	ph->data_length = pb->len - sizeof(payload_header_t); // set variable payload data lengh in payload header
-	pcnt++;
-
-	if (curr_pb == param_data_packets_per_block-1) {      // reaching the last packet, we start injection sequence
-	  for(int i=0;i<param_data_packets_per_block;i++) {
-            wph->sequence_number = seq_nr;                              // set sequence number in wifi packet header
-            memcpy(wifi_packet_data, pkts_out[i].data, pkts_out[i].len);        // copy variable payload data
-            r = pcap_inject(ppcap, packet_transmit_buffer, plen);
-            if (r != plen) pcap_perror(ppcap, "Trouble injecting packet");
-
-	    seq_nr++;
-	    pkts_out[i].len=0;
-	  }
-	  curr_pb=0;
-        } else curr_pb++;
-      }
-    }
-    if(pcnt % 128 == 0) printf("%d data packets sent\n", pcnt);
-  }
-}
-*/
