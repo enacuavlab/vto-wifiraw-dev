@@ -48,17 +48,22 @@ int param_data_packets_per_block = 8;
 /*****************************************************************************/
 void process_payload(uint8_t *data, size_t data_len, int crc_correct) {
 
+  printf("crc %d len %ld\n", crc_correct, data_len);
+
   wifi_packet_header_t *wph;
-
   wph = (wifi_packet_header_t*)data;
-  data += sizeof(wifi_packet_header_t);
-  data_len -= sizeof(wifi_packet_header_t);
 
-  int block_num = wph->sequence_number / param_data_packets_per_block;
-  printf("rec %x blk %x crc %d len %ld\n", wph->sequence_number, block_num, crc_correct, data_len);
+  printf("wph->sequence_number %d\n",wph->sequence_number);
 
-  payload_header_t *ph = (payload_header_t*)data;
-  printf("(%d)\n",ph->data_length);
+//  data += sizeof(wifi_packet_header_t);
+//  data_len -= sizeof(wifi_packet_header_t);
+
+//  int block_num = wph->sequence_number / param_data_packets_per_block;
+//  printf("rec %x blk %x crc %d len %ld\n", wph->sequence_number, block_num, crc_correct, data_len);
+
+//  payload_header_t *ph = (payload_header_t*)data;
+//  printf("(%d)\n",ph->data_length);
+//  printf("(%d)\n",data[0]);
 //  data += sizeof(payload_header_t);
 //  write(STDOUT_FILENO, data, ph->data_length);
 //  fflush(stdout);

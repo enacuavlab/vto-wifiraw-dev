@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pcap.h>
+#include <fcntl.h>
 
 /*****************************************************************************/
 #define MAX_PACKET_LENGTH 4192
@@ -31,7 +32,7 @@ static uint8_t uint8_taIeeeHeader_data[] = {
 typedef struct {
   size_t len; 
   uint8_t *data;
-} out_packet_buffer_t;  // packets with variable data len
+} in_packet_buffer_t;  // packets with variable data len
 
 
 typedef struct {
@@ -47,7 +48,6 @@ typedef struct {
 /*****************************************************************************/
 int param_data_packets_per_block = 8;
 int param_packet_length = 1450;
-int param_min_packet_length = 0;
 
 
 /*****************************************************************************/
@@ -71,29 +71,64 @@ int main(int argc, char *argv[]) {
   memcpy(puint8_t, uint8_taIeeeHeader_data, sizeof (uint8_taIeeeHeader_data));
   puint8_t += sizeof (uint8_taIeeeHeader_data);
   int packet_header_length =  puint8_t - packet_header;
+
+  printf("packet_header_length:(%d)\n",packet_header_length);
+
   wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_length);
   uint8_t *wifi_packet_data = packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t);
   uint8_t plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
 
-  out_packet_buffer_t pkts_out[param_data_packets_per_block]; // one block with several packets
+  in_packet_buffer_t pkts_in[param_data_packets_per_block];
   for (int i=0;i<param_data_packets_per_block;i++) {
-    pkts_out[i].data=malloc(MAX_PACKET_LENGTH);
-    pkts_out[i].len=0;
+    pkts_in[i].data=malloc(MAX_PACKET_LENGTH);
+    pkts_in[i].len=0;
   }
 
-  int blk=0;
-
-  int inl,r;
+  struct timeval timeout;
+  fd_set rfds;
+  int inl,ret;
   int pcnt=0, curr_pb=0, seq_nr=0;
   for(;;) {
-    fd_set rfds;
+
     FD_ZERO(&rfds);
     FD_SET(STDIN_FILENO, &rfds);
+    timeout.tv_sec = 1;
+    ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
 
-    select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
+    if (ret > 0) {
+      in_packet_buffer_t *pb = &pkts_in[curr_pb];
+      inl=read(STDIN_FILENO, pb->data, MAX_PACKET_LENGTH - pb->len);   // fill pkts with inputs
+      if (inl < 0) continue;
+      pb->len += inl;
+      if (pb->len == MAX_PACKET_LENGTH) curr_pb++;
+      if (curr_pb == param_data_packets_per_block) ret = 0;  // all pkts are full, continue with send sequence
+    }
+
+    if (ret == 0) { 
+      if ((pkts_in[0].len) != 0) {                        // timeout with data available to send, or full pkts to send
+        int nbpkts;
+	if (curr_pb == param_data_packets_per_block) nbpkts = param_data_packets_per_block;
+	else nbpkts = curr_pb+1;
+        for (int i=0;i<nbpkts;i++) {
+  	  printf("(%d)(%ld)\n", i,pkts_in[i].len);
+	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
+          memcpy(wifi_packet_data, pkts_in[i].data, pkts_in[i].len);   // copy variable payload data
+	  ret = pcap_inject(ppcap, packet_transmit_buffer, plen);      // inject all transmit  buffer
+	  seq_nr++;
+	  pkts_in[i].len = 0;
+  	}
+	curr_pb = 0;
+      }
+    }
+  }
+}
+
+
+
+/*
     if (FD_ISSET(STDIN_FILENO, &rfds)) {
 
-      out_packet_buffer_t *pb = &pkts_out[curr_pb];
+      in_packet_buffer_t *pb = &pkts_out[curr_pb];
       if(pb->len == 0) pb->len += sizeof(payload_header_t); // first use of this packet, make room for header containing variable payload data length 
 
       inl=read(STDIN_FILENO, pb->data + pb->len, param_packet_length - pb->len);
@@ -110,20 +145,18 @@ int main(int argc, char *argv[]) {
 	if (curr_pb == param_data_packets_per_block-1) {      // reaching the last packet, we start injection sequence
 	  for(int i=0;i<param_data_packets_per_block;i++) {
             wph->sequence_number = seq_nr;                              // set sequence number in wifi packet header
-//            memcpy(wifi_packet_data, pkts_out[i].data, pkts_out[i].len);        // copy variable payload data
-            memcpy(wifi_packet_data, pkts_out[i].data, param_packet_length);        // copy variable payload data
+            memcpy(wifi_packet_data, pkts_out[i].data, pkts_out[i].len);        // copy variable payload data
             r = pcap_inject(ppcap, packet_transmit_buffer, plen);
             if (r != plen) pcap_perror(ppcap, "Trouble injecting packet");
 
-	    printf("blk %d pkt %d len %d\n",blk,i,param_packet_length);
 	    seq_nr++;
 	    pkts_out[i].len=0;
 	  }
 	  curr_pb=0;
-	  blk++;
         } else curr_pb++;
       }
     }
     if(pcnt % 128 == 0) printf("%d data packets sent\n", pcnt);
   }
 }
+*/
