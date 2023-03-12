@@ -51,19 +51,14 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct) {
 
   wifi_packet_header_t *wph = (wifi_packet_header_t*)data;
   int block_num = wph->sequence_number / param_data_packets_per_block;
-//  printf("seq (%d)\n", wph->sequence_number);
 
   data += sizeof(wifi_packet_header_t);
+  data_len -= sizeof(wifi_packet_header_t);
 
   payload_header_t *ph = (payload_header_t*)data;
-//  printf("length (%d)\n", ph->data_length);
+  data += sizeof(payload_header_t);
 
-  uint8_t *ptr = data + sizeof(wifi_packet_header_t) + sizeof(payload_header_t) + 8;
-
-//  for (int i=0;i<ph->data_length-1;i++) 
-//    printf("(%d)",ptr[i]);
-
-  write(STDOUT_FILENO, ptr, ph->data_length-1);
+  write(STDOUT_FILENO, data, ph->data_length);
   fflush(stdout);
 }
 

@@ -86,20 +86,20 @@ int main(int argc, char *argv[]) {
   struct timeval timeout;
   fd_set rfds;
   int inl,ret;
-  int pcnt=0, curr_pb=0, seq_nr=0;
+  int curr_pb=0, seq_nr=0;
   for(;;) {
 
     FD_ZERO(&rfds);
     FD_SET(STDIN_FILENO, &rfds);
     timeout.tv_sec = 1;
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
-
+/*
     if (ret > 0) {
       in_packet_buffer_t *pb = &pkts_in[curr_pb];
-      inl=read(STDIN_FILENO, pb->data, MAX_PACKET_LENGTH - pb->len);   // fill pkts with inputs
+      inl=read(STDIN_FILENO, pb->data, param_packet_length - pb->len);   // fill pkts with inputs
       if (inl < 0) continue;
       pb->len += inl;
-      if (pb->len == MAX_PACKET_LENGTH) curr_pb++;
+      if (pb->len == param_packet_length) curr_pb++;
       if (curr_pb == param_data_packets_per_block) ret = 0;  // all pkts are full, continue with send sequence
     }
 
@@ -110,13 +110,50 @@ int main(int argc, char *argv[]) {
 	else nbpkts = curr_pb+1;
         for (int i=0;i<nbpkts;i++) {
 	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
-	  pay_h->data_length = pkts_in[i].len;                         // set data length in payload header
-          memcpy(pay, pkts_in[i].data, pkts_in[i].len);                // copy variable payload data
+
+          payload_header_t *ph = (payload_header_t*)pkts_in[i].data;
+          ph->data_length = pkts_in[i].len - sizeof(payload_header_t); // set variable payload size in payload header
+
+          memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts_in[i].data, param_packet_length);
 	  ret = pcap_inject(ppcap, packet_transmit_buffer, plen);      // inject all transmit  buffer
 	  seq_nr++;
 	  pkts_in[i].len = 0;
   	}
 	curr_pb = 0;
+      }
+    }
+*/
+    if (FD_ISSET(STDIN_FILENO, &rfds)) {
+
+      in_packet_buffer_t *pb = &pkts_in[curr_pb];
+      if(pb->len == 0) pb->len += sizeof(payload_header_t);
+
+      inl=read(STDIN_FILENO, pb->data + pb->len, param_packet_length - pb->len);
+      if(inl < 0 || inl > param_packet_length-pb->len) exit(-1);
+      if(inl == 0) {
+        usleep(1e5);
+        continue;
+      }
+
+      pb->len += inl;
+
+      if(pb->len >= 0) {
+
+        if (curr_pb == param_data_packets_per_block-1) {
+
+          for(int i=0;i<param_data_packets_per_block;i++) {
+            wph->sequence_number = seq_nr;
+
+            payload_header_t *ph = (payload_header_t*)pkts_in[i].data;
+            ph->data_length = pkts_in[i].len - sizeof(payload_header_t); // set variable payload size in payload header
+
+            memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts_in[i].data, param_packet_length);
+            ret = pcap_inject(ppcap, packet_transmit_buffer, plen);
+            seq_nr++;
+            pkts_in[i].len=0;
+          }
+          curr_pb=0;
+        } else curr_pb++;
       }
     }
   }
