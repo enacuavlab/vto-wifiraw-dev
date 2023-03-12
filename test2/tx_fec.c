@@ -1,11 +1,14 @@
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <pcap.h>
 #include <fcntl.h>
+
+#include "fec.h"
 
 /*****************************************************************************/
 #define MAX_PACKET_LENGTH 4192
@@ -46,6 +49,7 @@ typedef struct {
 
 
 /*****************************************************************************/
+int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 int param_packet_length = 1450;
 
@@ -70,13 +74,25 @@ int main(int argc, char *argv[]) {
   int packet_header_length =  puint8_t - packet_header;
   int plen = param_packet_length + packet_header_length + sizeof(wifi_packet_header_t);
   wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_length);
-
   in_packet_buffer_t pkts_in[param_data_packets_per_block];
   for (int i=0;i<param_data_packets_per_block;i++) {
-    pkts_in[i].data=malloc(MAX_PACKET_LENGTH);
-    pkts_in[i].len=0;
+    pkts_in[i].data=malloc(param_packet_length);pkts_in[i].len=0;
   }
 
+  in_packet_buffer_t pkts_fec[param_fec_packets_per_block];
+  for (int i=0;i<param_fec_packets_per_block;i++) {
+    pkts_fec[i].data=malloc(param_packet_length);pkts_fec[i].len=0;
+  }
+  fec_t* fec_p;
+  if (param_fec_packets_per_block) fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
+  const unsigned char *blocks[param_data_packets_per_block];
+  for (int i=0;i<param_data_packets_per_block;i++) blocks[i]=malloc(param_packet_length);
+  unsigned char *outblocks[param_fec_packets_per_block];
+  for (int i=0;i<param_fec_packets_per_block;i++) outblocks[i]=malloc(param_packet_length);
+  int num=2;
+  unsigned block_nums[] = {4, 7};
+
+  bool usefec;
   struct timeval timeout;
   fd_set rfds;
   int inl,ret;
@@ -100,6 +116,42 @@ int main(int argc, char *argv[]) {
         int nbpkts;
 	if (curr_pb == param_data_packets_per_block) nbpkts = param_data_packets_per_block;
 	else nbpkts = curr_pb+1;
+
+
+        usefec = ((param_fec_packets_per_block) && (curr_pb == param_data_packets_per_block));  // use fec when all full packet are sent
+        if (usefec) {
+          for(int i=0; i<param_data_packets_per_block; ++i) blocks[i] = pkts_in[i].data;
+          fec_encode(fec_p, blocks, outblocks, block_nums, num, param_packet_length);
+          for(int i=0; i<param_fec_packets_per_block; ++i) {
+	    memset(pkts_fec[i].data, 0, sizeof(payload_header_t));
+	    memcpy(pkts_fec[i].data + sizeof(payload_header_t), &outblocks[i], param_packet_length - sizeof(payload_header_t));
+	  }
+        }
+
+	printf("usefec=%d\n",usefec);fflush(stdout);
+        uint8_t *ptr=NULL;
+        bool interl = true;
+        int di = 0,fi = 0, li=0;                                   // send data and fec interleaved
+        while ((usefec && ((di < param_data_packets_per_block) || (fi < param_fec_packets_per_block)))
+          || (!usefec && (li < nbpkts))) {
+	  if (usefec) {	
+            if (di < param_data_packets_per_block) {
+              if (((fi < param_fec_packets_per_block) && (interl)) || (fi == param_fec_packets_per_block)) {
+                  ptr = &(pkts_in[di].data); di++;
+                }
+              }
+  	    if ((param_fec_packets_per_block) && (fi < param_fec_packets_per_block)) {
+                if (((di < param_data_packets_per_block) && (!interl)) || (di == param_data_packets_per_block)) {
+                  ptr = &pkts_fec[fi]; fi++;
+                }
+            }
+	  } else {
+             ptr = &(pkts_in[li].data); li++;
+	  }
+          interl = !interl; // toggle
+	}
+
+/*
         for (int i=0;i<nbpkts;i++) {
 	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
           payload_header_t *ph = (payload_header_t*)pkts_in[i].data;   // set variable payload size in
@@ -110,6 +162,7 @@ int main(int argc, char *argv[]) {
 	  pkts_in[i].len = 0;
   	}
 	curr_pb = 0;
+*/
       }
     }
   }
