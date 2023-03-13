@@ -54,6 +54,9 @@ int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 int param_packet_length = 1450;
 
+#define MAX_PACKET_SIZE 1510
+#define MAX_FEC_PAYLOAD  (MAX_PACKET_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t)) // 1470
+
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -90,14 +93,16 @@ int main(int argc, char *argv[]) {
   for (int i=0;i<param_data_packets_per_block;i++) blocks[i]=malloc(param_packet_length);
   unsigned char *outblocks[param_fec_packets_per_block];
   for (int i=0;i<param_fec_packets_per_block;i++) outblocks[i]=malloc(param_packet_length);
-  int num=2;
-  unsigned block_nums[] = {4, 7};
+
+  unsigned block_nums[] = {4, 5, 6, 7};
+  int num=(param_data_packets_per_block - param_fec_packets_per_block);
 
   bool usefec;
   struct timeval timeout;
   fd_set rfds;
   int inl,ret;
   int curr_pb=0, seq_nr=0;
+  payload_header_t *ph;
   for(;;) {
     FD_ZERO(&rfds);
     FD_SET(STDIN_FILENO, &rfds);
@@ -120,15 +125,14 @@ int main(int argc, char *argv[]) {
 	usefec = false;
         if ((param_fec_packets_per_block) && (curr_pb == param_data_packets_per_block)) usefec=true;  // use fec when all full packet are sent
         if (usefec) {
-          for(int i=0; i<param_data_packets_per_block; ++i) blocks[i] = pkts_in[i].data;
-	  printf("fec_encode in num(%d) [0](%d) [1](%d)\n",num,block_nums[0],block_nums[1]);
-          fec_encode(fec_p, blocks, outblocks, block_nums, num, param_packet_length);
-	  printf("fec_encode out num(%d) [0](%d) [1](%d)\n",num,block_nums[0],block_nums[1]);
+          for(int i=0; i<param_data_packets_per_block; ++i) memcpy((void *)blocks[i],pkts_in[i].data,param_packet_length);
+          fec_encode(fec_p, blocks, outblocks,  block_nums, num, param_packet_length);
           for(int i=0; i<param_fec_packets_per_block; ++i) {
-	    pkts_fec[i].data += sizeof(payload_header_t);
-	    memcpy(pkts_fec[i].data + sizeof(payload_header_t), outblocks[i], param_packet_length - sizeof(payload_header_t));
+	    ph =  (payload_header_t*)&pkts_fec[i]; ph->data_length = (-param_packet_length); // set unsigned data_length signed bit for fec
+	    memcpy(pkts_fec[i].data + sizeof(payload_header_t),outblocks,param_packet_length - sizeof(payload_header_t));
 	  }
         }
+	bool go = false;
         uint8_t *pkts_data=NULL;
 	size_t pkts_len;
         bool interl = true;
@@ -139,22 +143,27 @@ int main(int argc, char *argv[]) {
             if (di < param_data_packets_per_block) {
               if (((fi < param_fec_packets_per_block) && (interl)) || (fi == param_fec_packets_per_block)) {
                   pkts_len = pkts_in[di].len; pkts_in[di].len=0; pkts_data = pkts_in[di].data; di++;
+                  go = true;
                 }
               }
   	    if ((param_fec_packets_per_block) && (fi < param_fec_packets_per_block)) {
                 if (((di < param_data_packets_per_block) && (!interl)) || (di == param_data_packets_per_block)) {
                   pkts_len = pkts_fec[fi].len; pkts_fec[fi].len=0; pkts_data = pkts_fec[fi].data; fi++;
+		  go = true;
                 }
             }
 	  } else {
             pkts_len = pkts_in[li].len; pkts_in[li].len=0; pkts_data = pkts_in[li].data; li++;
+	    go = true;
 	  }
           interl = !interl; // toggle
 	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
-          payload_header_t *ph = (payload_header_t*)pkts_data;         // set variable payload size in
+          ph = (payload_header_t*)pkts_data;                           // set variable payload size in
           ph->data_length = pkts_len - sizeof(payload_header_t);       // previous allocated payload header
           memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts_data, param_packet_length);
-	  ret = pcap_inject(ppcap, packet_transmit_buffer, plen);      // inject all transmit  buffer
+	  if (go) {
+	    ret = pcap_inject(ppcap, packet_transmit_buffer, plen);    // inject all transmit  buffer
+          }
 	  seq_nr++;
 	}
 	curr_pb = 0;

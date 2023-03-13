@@ -60,9 +60,12 @@ void process_payload(uint8_t *data, size_t data_len, int crc_correct) {
   payload_header_t *ph = (payload_header_t*)data;
   data += sizeof(payload_header_t);
 
-//  printf("(%d)\n",ph->data_length);
-  if(ph->data_length > 0)  write(STDOUT_FILENO, data, ph->data_length);
-  fflush(stdout);
+  int32_t temp = (ph->data_length) << 13; // fec packets have data_length signed bit set
+  
+  if (temp > 0) {
+    write(STDOUT_FILENO, data, ph->data_length);
+    fflush(stdout);
+  } 
 }
 
 
