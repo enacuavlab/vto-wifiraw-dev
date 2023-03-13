@@ -49,6 +49,7 @@ typedef struct {
 
 
 /*****************************************************************************/
+//int param_fec_packets_per_block = 0; // NO FEC
 int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 int param_packet_length = 1450;
@@ -116,53 +117,47 @@ int main(int argc, char *argv[]) {
         int nbpkts;
 	if (curr_pb == param_data_packets_per_block) nbpkts = param_data_packets_per_block;
 	else nbpkts = curr_pb+1;
-
-
-        usefec = ((param_fec_packets_per_block) && (curr_pb == param_data_packets_per_block));  // use fec when all full packet are sent
+	usefec = false;
+        if ((param_fec_packets_per_block) && (curr_pb == param_data_packets_per_block)) usefec=true;  // use fec when all full packet are sent
         if (usefec) {
           for(int i=0; i<param_data_packets_per_block; ++i) blocks[i] = pkts_in[i].data;
+	  printf("fec_encode in num(%d) [0](%d) [1](%d)\n",num,block_nums[0],block_nums[1]);
           fec_encode(fec_p, blocks, outblocks, block_nums, num, param_packet_length);
+	  printf("fec_encode out num(%d) [0](%d) [1](%d)\n",num,block_nums[0],block_nums[1]);
           for(int i=0; i<param_fec_packets_per_block; ++i) {
-	    memset(pkts_fec[i].data, 0, sizeof(payload_header_t));
-	    memcpy(pkts_fec[i].data + sizeof(payload_header_t), &outblocks[i], param_packet_length - sizeof(payload_header_t));
+	    pkts_fec[i].data += sizeof(payload_header_t);
+	    memcpy(pkts_fec[i].data + sizeof(payload_header_t), outblocks[i], param_packet_length - sizeof(payload_header_t));
 	  }
         }
-
-	printf("usefec=%d\n",usefec);fflush(stdout);
-        uint8_t *ptr=NULL;
+        uint8_t *pkts_data=NULL;
+	size_t pkts_len;
         bool interl = true;
-        int di = 0,fi = 0, li=0;                                   // send data and fec interleaved
+        int di = 0,fi = 0, li=0;                                   // send data and fec interleaved, when needed
         while ((usefec && ((di < param_data_packets_per_block) || (fi < param_fec_packets_per_block)))
           || (!usefec && (li < nbpkts))) {
 	  if (usefec) {	
             if (di < param_data_packets_per_block) {
               if (((fi < param_fec_packets_per_block) && (interl)) || (fi == param_fec_packets_per_block)) {
-                  ptr = &(pkts_in[di].data); di++;
+                  pkts_len = pkts_in[di].len; pkts_in[di].len=0; pkts_data = pkts_in[di].data; di++;
                 }
               }
   	    if ((param_fec_packets_per_block) && (fi < param_fec_packets_per_block)) {
                 if (((di < param_data_packets_per_block) && (!interl)) || (di == param_data_packets_per_block)) {
-                  ptr = &pkts_fec[fi]; fi++;
+                  pkts_len = pkts_fec[fi].len; pkts_fec[fi].len=0; pkts_data = pkts_fec[fi].data; fi++;
                 }
             }
 	  } else {
-             ptr = &(pkts_in[li].data); li++;
+            pkts_len = pkts_in[li].len; pkts_in[li].len=0; pkts_data = pkts_in[li].data; li++;
 	  }
           interl = !interl; // toggle
-	}
-
-/*
-        for (int i=0;i<nbpkts;i++) {
 	  wph->sequence_number = seq_nr;                               // set sequence number in wifi packet header
-          payload_header_t *ph = (payload_header_t*)pkts_in[i].data;   // set variable payload size in
-          ph->data_length = pkts_in[i].len - sizeof(payload_header_t); // previous allocated payload header
-          memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts_in[i].data, param_packet_length);
+          payload_header_t *ph = (payload_header_t*)pkts_data;         // set variable payload size in
+          ph->data_length = pkts_len - sizeof(payload_header_t);       // previous allocated payload header
+          memcpy(packet_transmit_buffer + packet_header_length + sizeof(wifi_packet_header_t), pkts_data, param_packet_length);
 	  ret = pcap_inject(ppcap, packet_transmit_buffer, plen);      // inject all transmit  buffer
 	  seq_nr++;
-	  pkts_in[i].len = 0;
-  	}
+	}
 	curr_pb = 0;
-*/
       }
     }
   }
