@@ -64,27 +64,28 @@ int main(int argc, char *argv[]) {
   int fd = pcap_get_selectable_fd(ppcap);
 
   uint8_t rx_buff[PKT_SIZE];
-  uint8_t *rx_p = rx_buff; 
+  uint8_t *rx_p0 = rx_buff; 
   struct pcap_pkthdr * ppcapPacketHeader = NULL;
 
   wifi_adapter_rx_status_t rx_status;
   memset(&rx_status,0,sizeof(rx_status));
-  fd_set readset;int ret, u16HeaderLen, n, crc;
+  fd_set readset;int ret, u16HeaderLen, n, crc;int32_t temp;
   PENUMBRA_RADIOTAP_DATA prd;
+
   for(;;) {
     FD_ZERO(&readset);FD_SET(fd, &readset);
     ret = select(fd+1, &readset, NULL, NULL, NULL);
     if(n == 0) break;
     if(FD_ISSET(fd, &readset)) {
-      ret = pcap_next_ex(ppcap, &ppcapPacketHeader, (const u_char**)&rx_p);
+      ret = pcap_next_ex(ppcap, &ppcapPacketHeader, (const u_char**)&rx_p0);
       if (ret < 0) exit(-1);
       if (ret != 1) continue;
-      u16HeaderLen = (rx_p[2] + (rx_p[3] << 8));
+      u16HeaderLen = (rx_p0[2] + (rx_p0[3] << 8));
       if (ppcapPacketHeader->len < (u16HeaderLen + n80211HeaderLength)) continue;
       int bytes = ppcapPacketHeader->len - (u16HeaderLen + n80211HeaderLength);
       if (bytes < 0) continue;
       struct ieee80211_radiotap_iterator rti;
-      if (ieee80211_radiotap_iterator_init(&rti,(struct ieee80211_radiotap_header *)rx_p,ppcapPacketHeader->len,NULL)<0)continue;
+      if (ieee80211_radiotap_iterator_init(&rti,(struct ieee80211_radiotap_header *)rx_p0,ppcapPacketHeader->len,NULL)<0)continue;
       PENUMBRA_RADIOTAP_DATA prd;
       while ((n = ieee80211_radiotap_iterator_next(&rti)) == 0) {
         switch (rti.this_arg_index) {
@@ -96,31 +97,27 @@ int main(int argc, char *argv[]) {
             break;
         }
       }
-      rx_p += u16HeaderLen + n80211HeaderLength;
+      rx_p0 += u16HeaderLen + n80211HeaderLength;
       crc = (prd.m_nRadiotapFlags & 0x40) == 0;
       if(!crc) rx_status.wrong_crc_cnt++;
       rx_status.received_packet_cnt++;
       rx_status.last_update = time(NULL);
 
-      printf("(%d)(%d)\n",bytes,crc);fflush(stdout);
+      printf("bytes(%d) crc(%d)\n",bytes,crc);fflush(stdout);
 
-//      wifi_packet_header_t *wph = (wifi_packet_header_t*)rx_p;
+      printf("seq(%d)\n",((wifi_packet_header_t*)rx_p0)->sequence_number);
+      rx_p0 += sizeof(wifi_packet_header_t);
+
+      printf("length(%d)\n",((payload_header_t*)rx_p0)->data_length);
+/*
+      temp= ((((payload_header_t*)rx_p0)->data_length) << 13); // fec packets have data_length signed bit set
+
+      payload_header_t *ph = (payload_header_t*)rx_p0;
+      if (temp > 0) {
+        write(STDOUT_FILENO, rx_p0, temp);
+        fflush(stdout);
+     }
+*/
     }
   }
 }
-//  int block_num = wph->sequence_number / param_data_packets_per_block;
-
-//  rx_p += sizeof(wifi_packet_header_t);
-//  data_len -= sizeof(wifi_packet_header_t);
-
-//  payload_header_t *ph = (payload_header_t*)rx_p;
-//  rx_p += sizeof(payload_header_t);
-
-//  int32_t temp = (ph->data_length) << 13; // fec packets have data_length signed bit set
- 
-//  printf("crc_corrrect (%d)\n", crc_correct);
-
-
-//  if (temp > 0) {
-//    write(STDOUT_FILENO, rx_p, ph->data_length);
-//    fflush(stdout);

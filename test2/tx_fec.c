@@ -91,15 +91,14 @@ int main(int argc, char *argv[]) {
   fd_set rfds;struct timeval timeout;bool usefec;pkt_t *pkt_p;int inl, ret, nb_pkts;int nb_curr=0, nb_seq=0;
   bool interl = true;int di = 0,fi = 0, li=0;  
   for(;;) {
-    FD_ZERO(&rfds);FD_SET(STDIN_FILENO, &rfds);
+    FD_ZERO(&rfds);
+    FD_SET(STDIN_FILENO, &rfds);
     timeout.tv_sec = 1;
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
     if (ret > 0) {
       pkt_p = &pkts_data[nb_curr];
       if(pkt_p->len == 0) pkt_p->len += sizeof(payload_header_t);                   // on first use, make room for payload header
-      printf("(%ld)\n",pkt_p->len);fflush(stdout);									 
       inl=read(STDIN_FILENO, pkt_p->data + pkt_p->len, PKT_DATA - pkt_p->len);   // fill pkts with inputs
-      printf("(%d))\n",inl);fflush(stdout);									 
       if (inl < 0) continue;
       pkt_p->len += inl;
       if (pkt_p->len == PKT_DATA) nb_curr++;                         // current packet is full, switch to next packet
@@ -119,6 +118,7 @@ int main(int argc, char *argv[]) {
 	    memcpy(pkts_fec[i].data,outblocks, PKT_DATA);
 	  }
         }
+	di=0;fi=0;li=0;
         while ((usefec && ((di < param_data_packets_per_block) || (fi < param_fec_packets_per_block)))
           || (!usefec && (li < nb_pkts))) {                         // send data and fec interleaved, when needed
 	  if (usefec) {	
@@ -136,10 +136,13 @@ int main(int argc, char *argv[]) {
               pkt_p = &pkts_data[li]; li ++;
 	  }
           interl = !interl; // toggle
-          ((wifi_packet_header_t *)tx_p2)->sequence_number = nb_seq++;
+          ((wifi_packet_header_t *)tx_p0)->sequence_number = nb_seq;
 	  ((payload_header_t *) tx_p1)->data_length = pkt_p->len;
-          memcpy(tx_p0, (void *)pkt_p, PKT_PAYL);
+          memcpy(tx_p2, (void *)pkt_p, PKT_PAYL);
 	  ret = pcap_inject(ppcap, tx_buff, PKT_SIZE);
+	  printf("%d %d\n",nb_seq,ret);
+	  pkt_p->len = 0; 
+	  nb_seq++;
 	}
 	nb_curr = 0;
       }
