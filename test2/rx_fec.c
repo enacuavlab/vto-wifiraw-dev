@@ -114,8 +114,8 @@ int main(int argc, char *argv[]) {
       rx_p0 += sizeof(wifi_packet_header_t);
       uint32_t len = (((payload_header_t*)rx_p0)->data_length);
       int32_t temp = (len << 13); // fec packets have data_length signed bit set
-      if (temp > 0) printf("temp(%d)\n",temp);
       rx_p0 += sizeof(payload_header_t);
+
       if (temp > 0) {
         write(STDOUT_FILENO, rx_p0, len);
         fflush(stdout);

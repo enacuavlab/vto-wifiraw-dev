@@ -45,8 +45,8 @@ typedef struct {
 
 
 /*****************************************************************************/
-int param_fec_packets_per_block = 0; // NO FEC
-//int param_fec_packets_per_block = 4;
+//int param_fec_packets_per_block = 0; // NO FEC
+int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 
 #define PKT_SIZE 1510
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
     if (ret > 0) {
       pkt_p = &pkts_data[nb_curr];
-      inl=read(STDIN_FILENO, pkt_p->data + pkt_p->len, PKT_DATA - pkt_p->len);   // fill pkts with inputs
+      inl=read(STDIN_FILENO, pkt_p->data + pkt_p->len, PKT_DATA - pkt_p->len);   // fill pkts with input$
       if (inl < 0) continue;
       pkt_p->len += inl;
       if (pkt_p->len == PKT_DATA) nb_curr++;                         // current packet is full, switch to next packet
