@@ -11,6 +11,12 @@
 
 /*****************************************************************************/
 typedef struct {
+  size_t len;
+  uint8_t *data;
+} pkt_t;  // packets with variable data len
+
+
+typedef struct {
   time_t last_update;
   uint32_t received_packet_cnt;
   uint32_t wrong_crc_cnt;
@@ -69,13 +75,13 @@ int main(int argc, char *argv[]) {
 
   wifi_adapter_rx_status_t rx_status;
   memset(&rx_status,0,sizeof(rx_status));
-  fd_set readset;int ret, u16HeaderLen, n, crc;int32_t temp;
+  fd_set readset;int ret, u16HeaderLen, n, crc;
   PENUMBRA_RADIOTAP_DATA prd;
 
   for(;;) {
     FD_ZERO(&readset);FD_SET(fd, &readset);
     ret = select(fd+1, &readset, NULL, NULL, NULL);
-    if(n == 0) break;
+    if(ret == 0) break;
     if(FD_ISSET(fd, &readset)) {
       ret = pcap_next_ex(ppcap, &ppcapPacketHeader, (const u_char**)&rx_p0);
       if (ret < 0) exit(-1);
@@ -103,21 +109,17 @@ int main(int argc, char *argv[]) {
       rx_status.received_packet_cnt++;
       rx_status.last_update = time(NULL);
 
-      printf("bytes(%d) crc(%d)\n",bytes,crc);fflush(stdout);
+//      printf("(%d)\n",((wifi_packet_header_t *)rx_p0)->sequence_number);
 
-      printf("seq(%d)\n",((wifi_packet_header_t*)rx_p0)->sequence_number);
       rx_p0 += sizeof(wifi_packet_header_t);
-
-      printf("length(%d)\n",((payload_header_t*)rx_p0)->data_length);
-/*
-      temp= ((((payload_header_t*)rx_p0)->data_length) << 13); // fec packets have data_length signed bit set
-
-      payload_header_t *ph = (payload_header_t*)rx_p0;
+      uint32_t len = (((payload_header_t*)rx_p0)->data_length);
+      int32_t temp = (len << 13); // fec packets have data_length signed bit set
+      if (temp > 0) printf("temp(%d)\n",temp);
+      rx_p0 += sizeof(payload_header_t);
       if (temp > 0) {
-        write(STDOUT_FILENO, rx_p0, temp);
+        write(STDOUT_FILENO, rx_p0, len);
         fflush(stdout);
-     }
-*/
+      } 
     }
   }
 }

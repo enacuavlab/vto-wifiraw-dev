@@ -45,13 +45,12 @@ typedef struct {
 
 
 /*****************************************************************************/
-//int param_fec_packets_per_block = 0; // NO FEC
-int param_fec_packets_per_block = 4;
+int param_fec_packets_per_block = 0; // NO FEC
+//int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 
 #define PKT_SIZE 1510
-#define PKT_PAYL (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t)) 
-#define PKT_DATA (PKT_PAYL - sizeof(pkt_t))
+#define PKT_DATA (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t) - sizeof(payload_header_t))
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -97,7 +96,6 @@ int main(int argc, char *argv[]) {
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
     if (ret > 0) {
       pkt_p = &pkts_data[nb_curr];
-      if(pkt_p->len == 0) pkt_p->len += sizeof(payload_header_t);                   // on first use, make room for payload header
       inl=read(STDIN_FILENO, pkt_p->data + pkt_p->len, PKT_DATA - pkt_p->len);   // fill pkts with inputs
       if (inl < 0) continue;
       pkt_p->len += inl;
@@ -111,7 +109,7 @@ int main(int argc, char *argv[]) {
 	usefec = false;                                              // use fec when all full packet are sent
         if ((param_fec_packets_per_block) && (nb_curr == param_data_packets_per_block)) usefec=true; 
         if (usefec) {
-          for(int i=0; i<param_data_packets_per_block; ++i) memcpy((void *)blocks[i],pkts_data[i].data,PKT_DATA);
+          for(int i=0; i<param_data_packets_per_block; ++i) memcpy((void *)blocks[i],pkts_data[i].data,pkts_data[i].len);
           fec_encode(fec_p, blocks, outblocks,  block_nums, num, PKT_DATA);
           for(int i=0; i<param_fec_packets_per_block; ++i) {
             pkts_fec[i].len = (-PKT_DATA);                          // set unsigned data_length signed bit for fec
@@ -138,9 +136,8 @@ int main(int argc, char *argv[]) {
           interl = !interl; // toggle
           ((wifi_packet_header_t *)tx_p0)->sequence_number = nb_seq;
 	  ((payload_header_t *) tx_p1)->data_length = pkt_p->len;
-          memcpy(tx_p2, (void *)pkt_p, PKT_PAYL);
+          memcpy(tx_p2, pkt_p->data, abs(pkt_p->len)); // [payload_header with len of data] + [data]
 	  ret = pcap_inject(ppcap, tx_buff, PKT_SIZE);
-	  printf("%d %d\n",nb_seq,ret);
 	  pkt_p->len = 0; 
 	  nb_seq++;
 	}
