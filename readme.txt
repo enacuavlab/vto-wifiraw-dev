@@ -1,3 +1,7 @@
+git clone --recurse-submodules  https://github.com/enacuavlab/vto-wifiraw-dev.git
+
+(git clone --recurse-submodules  git@github.com:enacuavlab/vto-wifiraw-dev.git)
+
 -------------------------------------------------------------------------------
 src 
 -----
