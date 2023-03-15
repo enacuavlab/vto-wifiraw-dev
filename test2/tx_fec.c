@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   if(pcap_setnonblock(ppcap, 0, szErrbuf) < 0) exit(-1);
 
   uint8_t tx_buff[PKT_SIZE];
-  uint8_taRadiotapHeader[8]=0x48; /* data rate : 36Mb/s */
+  uint8_taRadiotapHeader[8]=0x48; /* (0x48 x 500 kbps) = data rate : 36Mb/s  */
   memcpy(tx_buff, uint8_taRadiotapHeader, sizeof(uint8_taRadiotapHeader));
   uint8_taIeeeHeader_data[5] = 0; /* standard DATA on port 0 (0-255) */
   memcpy(tx_buff + sizeof(uint8_taRadiotapHeader), uint8_taIeeeHeader_data, sizeof (uint8_taIeeeHeader_data));

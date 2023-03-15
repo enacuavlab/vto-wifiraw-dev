@@ -10,6 +10,24 @@
 #include "fec.h"
 
 /*****************************************************************************/
+static uint8_t uint8_taRadiotapHeader[] = {
+  0x00, 0x00, // <-- radiotap version
+  0x0c, 0x00, // <- radiotap header length
+  0x04, 0x80, 0x00, 0x00, // <-- radiotap present flags
+  0x00, // datarate (will be overwritten later)
+  0x00,
+  0x00, 0x00
+};
+
+static uint8_t uint8_taIeeeHeader_data[] = {
+  0x08, 0xbf, 0x00, 0x00, // frame control field (2 bytes), duration (2 bytes)
+  0xff, 0x00, 0x00, 0x00, 0x00, 0x00,// 1st byte of IEEE802.11 RA (mac) must be 0xff or something odd, otherwise strange things happen. second byte is the port (will be overwritten later)
+  0x13, 0x22, 0x33, 0x44, 0x55, 0x66, // mac
+  0x13, 0x22, 0x33, 0x44, 0x55, 0x66, // mac
+  0x00, 0x00, // IEEE802.11 seqnum, (will be overwritten later by Atheros firmware/wifi chip)
+};
+
+/*****************************************************************************/
 typedef struct {
   size_t len;
   uint8_t *data;
@@ -46,6 +64,7 @@ int param_fec_packets_per_block = 4;
 int param_data_packets_per_block = 8;
 
 #define PKT_SIZE 1510
+#define PKT_DATA (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t) - sizeof(payload_header_t))
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -78,6 +97,12 @@ int main(int argc, char *argv[]) {
   fd_set readset;int ret, u16HeaderLen, n, crc;
   PENUMBRA_RADIOTAP_DATA prd;
 
+  pkt_t pkts_data[param_data_packets_per_block];
+  for (int i=0;i<param_data_packets_per_block;i++) {pkts_data[i].data=malloc(PKT_DATA);pkts_data[i].len=0;}
+  pkt_t pkts_fec[param_fec_packets_per_block];
+  for (int i=0;i<param_fec_packets_per_block;i++) {pkts_fec[i].data=malloc(PKT_DATA);pkts_fec[i].len=0;}
+
+  int di = 0,fi = 0;
   for(;;) {
     FD_ZERO(&readset);FD_SET(fd, &readset);
     ret = select(fd+1, &readset, NULL, NULL, NULL);
@@ -116,9 +141,15 @@ int main(int argc, char *argv[]) {
       int32_t temp = (len << 13); // fec packets have data_length signed bit set
       rx_p0 += sizeof(payload_header_t);
 
-      if (temp > 0) {
-        write(STDOUT_FILENO, rx_p0, len);
-        fflush(stdout);
+      if (temp > 0) { memcpy(&pkts_data[di].data,rx_p0,len);pkts_data[di].len=len;di++; }
+      else { memcpy(&pkts_fec[fi].data,rx_p0,len);fi++; }
+
+      if ((di == param_data_packets_per_block) && (fi == param_fec_packets_per_block)) {
+	for (int i=0;i<param_data_packets_per_block;i++) {
+          write(STDOUT_FILENO, &pkts_data[i].data,  pkts_data[i].len);
+          fflush(stdout);
+	}
+        di=0;fi=0;
       } 
     }
   }
