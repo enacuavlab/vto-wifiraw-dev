@@ -1,3 +1,6 @@
 [submodule "radiotap-library"]
 	path = radiotap-library
 	url = git@github.com:radiotap/radiotap-library.git
+[submodule "zfec"]
+	path = zfec
+	url = git@github.com:tahoe-lafs/zfec.git
