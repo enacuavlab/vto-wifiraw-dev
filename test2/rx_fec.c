@@ -53,8 +53,14 @@ int main(int argc, char *argv[]) {
   pkt_t pkts_fec[param_fec_packets_per_block];
   for (int i=0;i<param_fec_packets_per_block;i++) {pkts_fec[i].data=malloc(PKT_DATA);pkts_fec[i].len=0;}
 
+  uint8_t inpkts_data[param_fec_packets_per_block][PKT_DATA];
   const unsigned char *inpkts[param_fec_packets_per_block];
+  for (int i=0;i<param_fec_packets_per_block;i++) inpkts[i] = &inpkts_data[i];
+
+  uint8_t outpkts_data[param_data_packets_per_block - param_fec_packets_per_block][PKT_DATA];
   unsigned char *outpkts[param_data_packets_per_block - param_fec_packets_per_block];
+  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) outpkts[i] = &outpkts_data[i];
+
   unsigned indexes[param_fec_packets_per_block];
   fec_t  *fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
 
@@ -109,22 +115,41 @@ int main(int argc, char *argv[]) {
           if (fi < param_fec_packets_per_block) {
             if (di > 0) {  // at least one data frame before fec data
 	      len = -len;
-  	      memcpy(inpkts,rx_p0,len);
-	      pkts_fec[fi].len=len;fi++;
+  	      memcpy((void *)inpkts[fi],rx_p0,len);
+	      fi++;
   	    } else reset=true;
   	  } else reset=true;
         }
         if (reset) {di = 0; fi = 0;}
         if ((di == param_data_packets_per_block) && (fi == param_fec_packets_per_block)) {
-	 
-          // option A nothing to decode, outpkts unchanged
-          unsigned indexesA[] = {0, 1, 2, 3}; // (index[row] == row)
-          fec_decode(fec_p, inpkts, outpkts, indexesA, 8);
+
+	  int j = param_fec_packets_per_block;
+	  int ob_idx = 0;
+          for(int i=0; i < param_fec_packets_per_block; i++) {
+	    if (true) {
+//            if(rx_ring[ring_idx].fragment_map[i]) {
+              inpkts[i] = pkts_fec[i].data;
+              indexes[i] = i;
+            } else {
+              for(;j < param_data_packets_per_block; j++) {
+	        if (true) {
+//                if(rx_ring[ring_idx].fragment_map[j]) {
+                  inpkts[i] = pkts_data[j].data;
+                  outpkts[ob_idx++] = pkts_fec[i].data;
+                  indexes[i] = j;
+                  j++;
+                  break;
+                }
+              }
+	    }
+          }
+          fec_decode(fec_p, inpkts, outpkts, indexes, PKT_DATA);
 
   	  for (int i=0;i<param_data_packets_per_block;i++) {
             write(STDOUT_FILENO, pkts_data[i].data,  pkts_data[i].len);
             fflush(stdout);
   	  }
+
 	  di=0;fi=0;
 	}
       } else {  // not using fec
