@@ -31,15 +31,17 @@ int main(int argc, char *argv[]) {
     memcpy(pkts_fec[i].data + sizeof(uint8_taRadiotapHeader), uint8_taIeeeHeader_data, sizeof (uint8_taIeeeHeader_data));
   }
 
-  fec_t* fec_p;
-  if (param_fec_packets_per_block) fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
+  uint8_t blocks_data[param_data_packets_per_block][PKT_DATA];
   const unsigned char *blocks[param_data_packets_per_block];
-  for (int i=0;i<param_data_packets_per_block;i++) blocks[i]=malloc(PKT_DATA);   // data without headers
+  for (int i=0;i<param_data_packets_per_block;i++) blocks[i] = &blocks_data[i];
+
+  uint8_t outblocks_data[param_fec_packets_per_block][PKT_DATA];
   unsigned char *outblocks[param_fec_packets_per_block];
-  for (int i=0;i<param_fec_packets_per_block;i++) outblocks[i]=malloc(PKT_DATA); // idem
+  for (int i=0;i<param_fec_packets_per_block;i++) outblocks[i] = &outblocks_data[i];
 
   unsigned block_nums[] = {4, 5, 6, 7};
-  int num=(param_data_packets_per_block - param_fec_packets_per_block);
+  //unsigned block_nums[param_data_packets_per_block - param_fec_packets_per_block];
+  fec_t* fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
 
   fd_set rfds;struct timeval timeout;bool usefec;pkt_t *pkt_p;int inl, ret, nb_pkts;int nb_curr=0, nb_seq=0;
   bool interl = true;int di = 0,fi = 0, li=0;  
@@ -63,11 +65,11 @@ int main(int argc, char *argv[]) {
 	usefec = false;                                              // use fec when all full packet are sent
         if ((param_fec_packets_per_block) && (nb_curr == param_data_packets_per_block)) usefec=true; 
         if (usefec) {
-          for(int i=0; i<param_data_packets_per_block; ++i) memcpy((void *)blocks[i], pkts_data[i].data + headerSize3, pkts_data[i].len);
-          fec_encode(fec_p, blocks, outblocks,  block_nums, num, PKT_DATA);
+          for(int i=0; i<param_data_packets_per_block; ++i) memcpy((void *)blocks_data[i], pkts_data[i].data + headerSize3, pkts_data[i].len);
+          fec_encode(fec_p, blocks, outblocks,  block_nums, (param_data_packets_per_block - param_fec_packets_per_block), PKT_DATA);
           for(int i=0; i<param_fec_packets_per_block; ++i) {
             pkts_fec[i].len = (-PKT_DATA);                          // set unsigned data_length signed bit for fec
-	    memcpy(pkts_fec[i].data + headerSize3, outblocks, PKT_DATA);
+	    memcpy(pkts_fec[i].data + headerSize3, outblocks_data[i], PKT_DATA);
 	  }
         }
 	di=0;fi=0;li=0;
