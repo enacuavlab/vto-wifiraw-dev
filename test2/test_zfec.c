@@ -2,130 +2,95 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-
+#include <stdbool.h>
 #include "fec.h"
 
 
 
 /*****************************************************************************/
-int param_fec_packets_per_block = 4;
-int param_data_packets_per_block = 8;
+int fec_k = 4;
+int fec_n = 8;
 
 #define PKT_DATA 1466
 
 /*****************************************************************************/
-void _hexwrite(unsigned char*s, size_t l) {
-  size_t i;
-  for (i = 0; i < l; i++)
-    printf("%.2x", s[i]);
-}
-
-/*****************************************************************************/
 int main(int argc, char *argv[]) {
 
-  uint8_t rand_data[param_data_packets_per_block][PKT_DATA];
-  for (int i=0;i<param_data_packets_per_block;i++) {
-    for (int j=0;j<PKT_DATA;j++) rand_data[i][j]=rand()%100;
-  }
-  uint8_t rand_fec[param_fec_packets_per_block][PKT_DATA];
-  for (int i=0;i<param_fec_packets_per_block;i++) {
-    for (int j=0;j<PKT_DATA;j++) rand_fec[i][j]=rand()%100;
-  }
-  uint8_t rand_data_fec[(param_data_packets_per_block - param_fec_packets_per_block)][PKT_DATA];
-  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) {
-    for (int j=0;j<PKT_DATA;j++) rand_data_fec[i][j]=rand()%100;
-  }
+  uint8_t *enc_in[fec_n];
+  uint8_t enc_indata[fec_n][PKT_DATA];
+  for (int i=0;i<fec_n;i++) enc_in[i] = enc_indata[i];
 
+  uint8_t *enc_out[fec_k];
+  uint8_t enc_outdata[fec_k][PKT_DATA];
+  for (int i=0;i<fec_k;i++) enc_out[i] = enc_outdata[i];
 
+  unsigned block_nums[] = { 0 + fec_k, 1 + fec_k, 2 + fec_k, 3 + fec_k };
 
- // blocks : the "primary blocks" i.e. the chunks of the input data
+  for (int i=0;i<fec_n;i++) {for (int j=0;j<PKT_DATA;j++) {enc_indata[i][j] = rand()%100;}}
 
-  uint8_t blocks_data[param_data_packets_per_block][PKT_DATA];
-  const unsigned char *blocks[param_data_packets_per_block];
-  for (int i=0;i<param_data_packets_per_block;i++) blocks[i] = &blocks_data[i];
-
-  // outblocks : fecs buffers into which the secondary blocks will be written
-
-  uint8_t outblocks_data[param_fec_packets_per_block][PKT_DATA];
-  unsigned char *outblocks[param_fec_packets_per_block];
-  for (int i=0;i<param_fec_packets_per_block;i++) outblocks[i] = &outblocks_data[i];
-
-  // block_nums : the numbers of the desired check blocks (the id >= k) which fec_encode() 
-  // will produce and store into the buffers of the fecs parameter
-  
-  unsigned block_nums[] = {4, 5, 6, 7};
-//  unsigned block_nums[param_data_packets_per_block - param_fec_packets_per_block];
-//  for (int i=0;i<num_block_nums;i++) block_nums[i]=param_fec_packets_per_block;
-
-
-
-  for (int i=0;i<param_data_packets_per_block;i++) memcpy(blocks_data[i], rand_data[i], PKT_DATA);
-  for (int i=0;i<param_fec_packets_per_block;i++) memcpy(outblocks_data[i], rand_fec[i], PKT_DATA);
-
-  fec_t  *fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
-  fec_encode(fec_p, blocks, outblocks,  block_nums, (param_data_packets_per_block - param_fec_packets_per_block), PKT_DATA);
-
-//  blocks_data[3][4] = 1 + blocks_data[3][4]; // insert difference
-
-  for (int i=0;i<param_data_packets_per_block;i++) {
-    if( 0 != memcmp(blocks_data[i], rand_data[i], PKT_DATA)) {
-      printf("blocks_data have changed\n");
-      break;
-    }
-  }
-
-  for (int i=0;i<param_fec_packets_per_block;i++) {
-    if( 0 != memcmp(outblocks_data[i], rand_fec[i], PKT_DATA)) {
-      printf("outblocks_data  have changed\n");
-      break;
-    }
-  }
-
+  fec_t *fec_p = fec_new(fec_k, fec_n);
+  fec_encode(fec_p, (const uint8_t**)enc_in, enc_out, block_nums, (fec_n - fec_k), PKT_DATA);
   free(fec_p);
 
-  //  inpkts : array of packets (size k); 
-  //  If a primary block, i, is present then it must be at index i. 
-  //  Secondary blocks can appear anywhere
+  printf("send data and fec frames\n");
 
-  uint8_t inpkts_data[param_fec_packets_per_block][PKT_DATA];
-  const unsigned char *inpkts[param_fec_packets_per_block];
-  for (int i=0;i<param_fec_packets_per_block;i++) inpkts[i] = &inpkts_data[i];
+  uint8_t *dec_in[fec_k];
+  uint8_t dec_indata[fec_k][PKT_DATA];
+  for (int i=0;i<fec_k;i++) dec_in[i] = dec_indata[i];
 
-  // outpkts : array of buffers into which the reconstructed output packets will be written 
-  // (only packets which are not present in the inpkts input will be reconstructed and written to outpkts)
+  uint8_t *dec_out[fec_n - fec_k];
+  uint8_t dec_outdata[fec_n - fec_k][PKT_DATA];
+  for (int i=0;i<(fec_n - fec_k);i++) dec_out[i] = dec_outdata[i];
 
-  uint8_t outpkts_data[param_data_packets_per_block - param_fec_packets_per_block][PKT_DATA];
-  unsigned char *outpkts[param_data_packets_per_block - param_fec_packets_per_block];
-  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) outpkts[i] = &outpkts_data[i];
+  printf("receive data and fec frames\n");
 
-  // indexes : array of the blocknums of the packets in inpkts
+  for (int i=0;i<fec_n;i++) memcpy(dec_indata[i],enc_indata[i],PKT_DATA);
+  for (int i=0;i<fec_k;i++) memcpy(dec_outdata[i],enc_outdata[i],PKT_DATA);
+
+  bool map[fec_n];
+  memset(map,1,sizeof(map)); // all true, no difference => index : {0, 1, 2, 3}
+			     
+  printf("data frame is alterated\n");
+  printf("%x \n",dec_indata[1][5]);
+  dec_indata[1][5]++ ;               // element 5 from dataframe 1 in incremeted
+  printf("%x \n",dec_indata[1][5]);
+  map[3] = 0;                        // frame alteration (ex wrong crc) is notified
+
+  uint8_t *data_frame[fec_n];
+  uint8_t data_frame_data[fec_n][PKT_DATA];
+  for (int i=0;i<fec_n;i++) data_frame[i] = data_frame_data[i];
+
+  uint8_t *fec_frame[fec_k];
+  uint8_t fec_frame_data[fec_k][PKT_DATA];
+  for (int i=0;i<fec_k;i++) fec_frame[i] = fec_frame_data[i];
+
+			     
+  unsigned index[fec_k];
+  int j = fec_k;
+  int ob_idx = 0;
+
+  for(int i=0; i < fec_k; i++) {
+    if(map[i]) {
+      dec_in[i] = fec_frame[i];
+      index[i] = i;
+    } else {
+      for(;j < fec_n; j++) {
+        if(map[j]) {
+          dec_in[i] = data_frame[j];
+          dec_out[ob_idx++] = data_frame[i];
+          index[i] = j;
+          j++;
+          break;
+	} 
+      }
+    }
+  }
+
+  // index = {0, 1, 2, 4}
+  
+  fec_p = fec_new(fec_k, fec_n);
+  fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, index, PKT_DATA);
+  free(fec_p);
  
-  //unsigned indexes[param_fec_packets_per_block];
-  unsigned indexes[] = {0, 1, 2, 3}; // No changes
-  //unsigned indexes[] = {4, 1, 2, 3}; // outpkts_data changed [0]
-  //unsigned indexes[] = {0, 4, 2, 3}; // outpkts_data changed [0]
-  //unsigned indexes[] = {4, 5, 2, 3}; // outpkts_data changed [0][1]
-  //unsigned indexes[] = {4, 5, 6, 7}; // outpkts_data changed [0][1][2][4]
-
-
-  for (int i=0;i<param_fec_packets_per_block;i++) memcpy(inpkts_data[i], rand_fec[i], PKT_DATA);
-  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) memcpy(outpkts_data[i], rand_data_fec[i], PKT_DATA);
-
-  inpkts_data[3][4] = 1 + inpkts_data[3][4]; // insert difference in pkt 3
-
-  fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
-  fec_decode(fec_p, inpkts, outpkts, indexes, PKT_DATA);
-
-  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) {
-    if( 0 != memcmp(outpkts_data[i], rand_data_fec[i], PKT_DATA)) {
-      printf("outpkts_data have changed [%d]\n",i);
-    }
-  }
-
-  for (int i=0;i<param_fec_packets_per_block;i++) {
-    if( 0 != memcmp(inpkts_data[i], rand_fec[i], PKT_DATA)) {
-      printf("inpkts_data  have changed\n");
-      break;
-    }
-  }
+  printf("%x \n",dec_out[1][5]);
 }
