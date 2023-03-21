@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -I../zfec/zfec -g
 LDFLAGS=-lpcap 
 
-all: test_zfec
+all: test_zfec_1 test_zfec_2
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -24,8 +24,12 @@ tx: tx.o ../radiotap-library/radiotap.o
 rx: rx.o ../radiotap-library/radiotap.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
-test_zfec: test_zfec.o ../zfec/zfec/fec.o
+test_zfec_1: test_zfec_1.o ../zfec/zfec/fec.o
 	gcc -o $@ $^ $(LDFLAGS)
 
+test_zfec_2: test_zfec_2.o ../zfec/zfec/fec.o
+	gcc -o $@ $^ $(LDFLAGS)
+
+
 clean:
-	rm -f tx_fec rx_fec tx rx test_zfec  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	rm -f tx_fec rx_fec tx rx test_zfec_1 test_zfec_2  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
