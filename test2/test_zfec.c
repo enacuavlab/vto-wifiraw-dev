@@ -175,7 +175,7 @@ int main(int argc, char *argv[]) {
   printf("---------------------------------------------------------------------\n");
   printf("select recovery decode option : combine first,second and third data (index 0,1,2), remained fecs => one remaining data provided\n");
 
-  unsigned index5[] = {0, 1, 2, 7};
+  unsigned index5[] = {0, 1, 2, 7}; // no 4,5,6
   for (int i=0;i<fec_k;i++) dec_in[i] = fec_frame[i]; // all fecs
   dec_in[0] = data_frame[0];                            // set first data (index 0)
   dec_in[1] = data_frame[1];                            // set second data (index 1)
@@ -199,24 +199,21 @@ int main(int argc, char *argv[]) {
   int ob_idx = 0;
 
   bool map[fec_n];
-  memset(map,1,sizeof(map)); // all true, no difference => index : {0, 1, 2, 3}
-			   
-  map[0] = 0;
+  memset(map,0,sizeof(map));
+
+ 
+//  int single_failure = 0;  // from 0 to 3
+//  map[single_failure] = 1; // recovery 1 failed frame from 0 to 3
+
+  map[0] = 1; map[2] = 1;
 			     
   for(int i=0; i < fec_k; i++)   {
     if(map[i]) {
       dec_in[i] = fec_frame[i];
-      indexes[i] = i;
+      indexes[i] = i+fec_k;
     } else {
-      for(;j < fec_n; j++) {
-        if(map[j]) {
-          dec_in[i] = data_frame[j];       
-          dec_out[ob_idx++] = fec_frame[i];
-          index[i] = j;
-          j++;
-          break;
-	} 
-      }
+      dec_in[i] = data_frame[i];
+      indexes[i] = i;
     }
   }
 
@@ -230,54 +227,14 @@ int main(int argc, char *argv[]) {
   free(fec_p);
 
   printf("decode outputs [");for (int i=0;i < (fec_n-fec_k); i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
-}
- 
-/*
-  bool map[fec_n];
-  memset(map,1,sizeof(map)); // all true, no difference => index : {0, 1, 2, 3}
-			     
-  printf("data frame is alterated\n");
-  printf("%x \n",dec_indata[1][5]);
-  dec_indata[1][5]++ ;               // element 5 from dataframe 1 in incremeted
-  printf("%x \n",dec_indata[1][5]);
-  map[1] = 0;                        // frame alteration (ex wrong crc) is notified
 
-  uint8_t *data_frame[fec_n];
-  uint8_t data_frame_data[fec_n][PKT_DATA];
-  for (int i=0;i<fec_n;i++) data_frame[i] = data_frame_data[i];
-
-  uint8_t *fec_frame[fec_k];
-  uint8_t fec_frame_data[fec_k][PKT_DATA];
-  for (int i=0;i<fec_k;i++) fec_frame[i] = fec_frame_data[i];
-
-			     
-  unsigned index[fec_k];
-  int j = fec_k;
-  int ob_idx = 0;
-
-  for(int i=0; i < fec_k; i++) {
-    if(map[i]) {
-      dec_in[i] = fec_frame[i];
-      index[i] = i;
-    } else {
-      for(;j < fec_n; j++) {
-        if(map[j]) {
-          dec_in[i] = data_frame[j];
-          dec_out[ob_idx++] = fec_frame[i];
-          index[i] = j;
-          j++;
-          break;
-	} 
-      }
-    }
+  uint8_t *data_frame_out[fec_n];
+  for (int i=fec_k;i<fec_n;i++) data_frame_out[i] = data_frame[i]; 
+  for (int i=0;i<fec_k;i++) data_frame_out[i] = dec_in[i];
+  for (int i=0;i<fec_k;i++) {
+    if (map[i]) data_frame_out[i] = dec_out[0]; 
   }
+//  data_frame_out[1] = dec_out[0];
 
-  // index = {0, 4, 2, 3}
-  
-  fec_p = fec_new(fec_k, fec_n);
-  fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, index, PKT_DATA);
-  free(fec_p);
- 
-  printf("%x \n",dec_out[1][5]);
+  printf("rebuild outputs [");for (int i=0;i < fec_n; i++) printf(" %d ",*data_frame_out[i]); printf(" ]\n");
 }
-*/
