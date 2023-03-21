@@ -48,9 +48,9 @@ typedef struct {
 
 
 /*****************************************************************************/
-//int param_fec_packets_per_block = 0; // NO FEC
-int param_fec_packets_per_block = 4;
-int param_data_packets_per_block = 8;
+//int fec_k = 0; // NO FEC
+int fec_k = 4;
+int fec_n = 8;
 
 #define PKT_SIZE 1510
 #define PKT_DATA (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t) - sizeof(payload_header_t))

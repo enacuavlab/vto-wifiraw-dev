@@ -47,22 +47,23 @@ int main(int argc, char *argv[]) {
   fd_set readset;int ret, u16HeaderLen, n;bool crc;
   PENUMBRA_RADIOTAP_DATA prd;
 
-  bool  crc_data[param_data_packets_per_block];
-  pkt_t pkts_data[param_data_packets_per_block];
-  for (int i=0;i<param_data_packets_per_block;i++) {pkts_data[i].data=malloc(PKT_DATA);pkts_data[i].len=0;}
-  pkt_t pkts_fec[param_fec_packets_per_block];
-  for (int i=0;i<param_fec_packets_per_block;i++) {pkts_fec[i].data=malloc(PKT_DATA);pkts_fec[i].len=0;}
+  bool  crc_data[fec_n],crc_all,crc_second_half;
 
-  uint8_t inpkts_data[param_fec_packets_per_block][PKT_DATA];
-  const unsigned char *inpkts[param_fec_packets_per_block];
-  for (int i=0;i<param_fec_packets_per_block;i++) inpkts[i] = &inpkts_data[i];
+  pkt_t pkts_data[fec_n];
+  for (int i=0;i<fec_n;i++) {pkts_data[i].data=malloc(PKT_SIZE); pkts_data[i].len=0;}
+ 
+  uint8_t *fec_frame[fec_k];
+  uint8_t fec_frame_data[fec_k][PKT_DATA];
+  for (int i=0;i<fec_k;i++) fec_frame[i] = fec_frame_data[i];
 
-  uint8_t outpkts_data[param_data_packets_per_block - param_fec_packets_per_block][PKT_DATA];
-  unsigned char *outpkts[param_data_packets_per_block - param_fec_packets_per_block];
-  for (int i=0;i<(param_data_packets_per_block - param_fec_packets_per_block);i++) outpkts[i] = &outpkts_data[i];
+  uint8_t *dec_in[fec_k];
 
-  unsigned indexes[param_fec_packets_per_block];
-  fec_t  *fec_p = fec_new(param_fec_packets_per_block,param_data_packets_per_block);
+  uint8_t *dec_out[fec_n - fec_k];
+  uint8_t dec_outdata[fec_n - fec_k][PKT_DATA];
+  for (int i=0;i<(fec_n - fec_k);i++) {dec_out[i] = dec_outdata[i];memset(dec_out[i],0,PKT_DATA);}
+
+  unsigned indexes[fec_k];
+  fec_t  *fec_p = fec_new(fec_k,fec_n);
 
   int di = 0,fi = 0;
   for(;;) {
@@ -91,11 +92,9 @@ int main(int argc, char *argv[]) {
         }
       }
       rx_p0 += u16HeaderLen + n80211HeaderLength;
-      crc = (prd.m_nRadiotapFlags & 0x40) == 0;
-      if(!crc) rx_status.wrong_crc_cnt++;
+      crc = (prd.m_nRadiotapFlags & 0x40) == 1; 
+      if(crc) rx_status.wrong_crc_cnt++;
       rx_status.received_packet_cnt++;
-
-//      printf("(%d)\n",((wifi_packet_header_t *)rx_p0)->sequence_number);
 
       rx_p0 += sizeof(wifi_packet_header_t);
       uint32_t len = (((payload_header_t*)rx_p0)->data_length);
@@ -103,52 +102,59 @@ int main(int argc, char *argv[]) {
 
       rx_p0 += sizeof(payload_header_t);
 
-      if (param_fec_packets_per_block > 0) {  // finding bloc containing arranged DATA and FEC frames
+      if (fec_k > 0) {  // finding bloc containing arranged DATA and FEC frames
         bool reset=false;
         if (temp > 0) {     // data frame candidate
-          if (di < param_data_packets_per_block) {
+          if (di < fec_n) {
   	    if (di >= fi) { 
   	      memcpy(pkts_data[di].data,rx_p0,len);pkts_data[di].len=len;crc_data[di]=crc;di++;
   	    } else reset=true;
   	  } else reset=true;
         } else {           // fec candidate
-          if (fi < param_fec_packets_per_block) {
+          if (fi < fec_k) {
             if (di > 0) {  // at least one data frame before fec data
 	      len = -len;
-  	      memcpy((void *)inpkts[fi],rx_p0,len);
+  	      memcpy((void *)fec_frame[fi],rx_p0,len);
 	      fi++;
   	    } else reset=true;
   	  } else reset=true;
         }
         if (reset) {di = 0; fi = 0;}
-        if ((di == param_data_packets_per_block) && (fi == param_fec_packets_per_block)) {
+        if ((di == fec_n) && (fi == fec_k)) { // the block is complete
 
-	  int j = param_fec_packets_per_block;
-	  int ob_idx = 0;
-          for(int i=0; i < param_fec_packets_per_block; i++) {
-	    if (true) {
-//            if(rx_ring[ring_idx].fragment_map[i]) {
-              inpkts[i] = pkts_fec[i].data;
-              indexes[i] = i;
-            } else {
-              for(;j < param_data_packets_per_block; j++) {
-	        if (true) {
-//                if(rx_ring[ring_idx].fragment_map[j]) {
-                  inpkts[i] = pkts_data[j].data;
-                  outpkts[ob_idx++] = pkts_fec[i].data;
-                  indexes[i] = j;
-                  j++;
-                  break;
+// PATCH TEST
+          crc_data[0] = 1; crc_data[1] = 1; crc_data[2] = 1; crc_data[3] = 1; // test recovery  !!!!
+
+          crc_all = 0; crc_second_half = 0;
+	  for (int i=0;i<fec_n;i++) {
+	    crc_all = crc_all && crc_data[i]; 
+	    if (i>=(fec_n-fec_k)) crc_second_half = crc_second_half && crc_data[i];
+	  }
+
+	  printf("%d %d\n",crc_all,crc_second_half);
+
+	  if (!crc_second_half) {  
+	    if (crc_all) {                       // only first half pkts can be recovered
+              for(int i=0; i < fec_k; i++)   {
+                if(crc_data[i]) {dec_in[i] = fec_frame[i];indexes[i] = i+fec_k;}
+                else {  dec_in[i] = pkts_data[i].data; indexes[i] = i;}
                 }
               }
-	    }
-          }
-          fec_decode(fec_p, inpkts, outpkts, indexes, PKT_DATA);
+              fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
 
-  	  for (int i=0;i<param_data_packets_per_block;i++) {
-            write(STDOUT_FILENO, pkts_data[i].data,  pkts_data[i].len);
-            fflush(stdout);
-  	  }
+	      printf("fec_decode\n");
+
+	      uint8_t error_pos = 0;             // rebuild output
+              for (int i=0;i<fec_k;i++) {
+                if (crc_data[i]) { memcpy(pkts_data[i].data,dec_out[error_pos],PKT_DATA); error_pos++; }
+                else { memcpy(pkts_data[i].data,dec_in[i],PKT_DATA);}
+	      }
+            }
+
+            for (int i=0;i<fec_n;i++) {
+              write(STDOUT_FILENO, pkts_data[i].data,  pkts_data[i].len);
+              fflush(stdout);
+            }
 
 	  di=0;fi=0;
 	}
