@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
   printf("select recovery decode option : all fecs no data =>  one data provided\n");
 
   uint8_t *dec_in[fec_k];
-  uint8_t dec_indata[fec_k][PKT_DATA];
+  //uint8_t dec_indata[fec_k][PKT_DATA];
 
   unsigned index[] = {4, 5, 6, 7}; // same as encoded block_nums
   for (int i=0;i<fec_k;i++) dec_in[i] = fec_frame[i]; // all fecs
@@ -195,17 +195,32 @@ int main(int argc, char *argv[]) {
   printf("---------------------------------------------------------------------\n");
 
   unsigned indexes[fec_k];
-  int j = fec_k;
-  int ob_idx = 0;
 
   bool map[fec_n];
   memset(map,0,sizeof(map));
 
- 
-//  int single_failure = 0;  // from 0 to 3
-//  map[single_failure] = 1; // recovery 1 failed frame from 0 to 3
+  // Recovery for first 0 to fec_k, position in data frames
+  // Data frames from fec_k to fec_n, cannot be recover (due to choosen fec encode index)
 
-  map[0] = 1; map[2] = 1;
+  // Uncomment one of these lines to make the test
+
+// single failure
+// map // not set
+//  map[0] = 1; 
+//  map[1] = 1;
+//  map[2] = 1; 
+//  map[3] = 1;
+
+  // multiple failure
+//  map[0] = 1; map[1] = 1;
+//  map[1] = 1; map[2] = 1;
+//  map[2] = 1; map[3] = 1;
+//  map[0] = 1; map[2] = 1;
+//  map[0] = 1; map[3] = 1;
+//  map[1] = 1; map[3] = 1;
+//  map[0] = 1; map[1] = 1; map[2] = 1;
+//  map[1] = 1; map[2] = 1; map[3] = 1;
+//  map[0] = 1; map[1] = 1; map[3] = 1;
 			     
   for(int i=0; i < fec_k; i++)   {
     if(map[i]) {
@@ -230,11 +245,14 @@ int main(int argc, char *argv[]) {
 
   uint8_t *data_frame_out[fec_n];
   for (int i=fec_k;i<fec_n;i++) data_frame_out[i] = data_frame[i]; 
-  for (int i=0;i<fec_k;i++) data_frame_out[i] = dec_in[i];
+
+  uint8_t error_pos = 0;
   for (int i=0;i<fec_k;i++) {
-    if (map[i]) data_frame_out[i] = dec_out[0]; 
+    if (map[i]) {
+      data_frame_out[i] = dec_out[error_pos]; 
+      error_pos++;
+    } else { data_frame_out[i] = dec_in[i];}
   }
-//  data_frame_out[1] = dec_out[0];
 
   printf("rebuild outputs [");for (int i=0;i < fec_n; i++) printf(" %d ",*data_frame_out[i]); printf(" ]\n");
 }
