@@ -20,14 +20,16 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
   bool fec_used[fec_d];
 
   unsigned indexes[fec_k];
+
   uint8_t *dec_in[fec_k];
 
   uint8_t *dec_out[fec_d];
   uint8_t dec_outdata[fec_d][PKT_DATA];
   for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];}
 
-  // 1) set decoder options with dec_in and indexes
-  // 2) start building final frame with dec_out (decode will produce in dec_out, only packet not present in dec_in)
+  printf(">before out [%d %d %d %d]\n",*dec_out[0],*dec_out[1],*dec_out[2],*dec_out[3]);
+
+  // set decoder options with dec_in and indexes
   memset(fec_used,0,sizeof(fec_used));
   for(int i=0; i < fec_k; i++)   {
     if(map_data[i]) {
@@ -41,7 +43,6 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
       }
     } else {
       dec_in[i] = data_frame[i];
-      dec_out[i] = data_frame[i];
       indexes[i] = i;
     }
   }
@@ -49,9 +50,20 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
   printf("decode inputs input [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_in[i]); printf(" ]\n");
   printf("decode inputs index [");for (int i=0;i < fec_k; i++) printf(" %d ",indexes[i]); printf(" ]\n");
 
+  // fec_decode may modify dec_in, and cannot use later
   fec_t *fec_p = fec_new(fec_k, fec_n);
   fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
   free(fec_p);
+
+  printf("decode output [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
+
+  // build final frame with dec_out (decode will produce in dec_out, only packet not present in dec_in)
+  memset(fec_used,0,sizeof(fec_used));
+  for(int i=0; i < fec_k; i++)   {
+    if(!map_data[i]) {
+      dec_out[i] = data_frame[i];
+    }
+  }
 
   printf("valid and decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
   if (!memcmp(enc_in,dec_out,sizeof(uint8_t))) {
@@ -103,6 +115,7 @@ int main(int argc, char *argv[]) {
   // recovery using good (crc ok) fec frames  
 
   // make all combination of failures map_data and map_fec 
+  
   for(uint8_t val_data=0;val_data<16;val_data++) {
     for(int j_data=3;j_data>=0;j_data--) {
       map_data[j_data] = (((uint8_t *)&val_data)[0] >> j_data) & 1;
