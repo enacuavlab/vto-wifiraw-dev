@@ -10,6 +10,7 @@
 #define fec_n 8
 // fec_n = original data + extra data (fec_k)
 
+uint8_t *enc_in[fec_k];        
 
 /*****************************************************************************/
 void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fec_frame[]) {
@@ -53,6 +54,9 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
   free(fec_p);
 
   printf("valid and decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
+  if (!memcmp(enc_in,dec_out,sizeof(uint8_t))) {
+    printf("!!!! \ncheck KO \n!!!!\n");
+  }
 }
 
 /*****************************************************************************/
@@ -60,7 +64,6 @@ int main(int argc, char *argv[]) {
 
   uint8_t fec_d = (fec_n - fec_k);
 
-  uint8_t *enc_in[fec_k];        
   uint8_t enc_indata[fec_k][PKT_DATA];
   for (int i=0;i<fec_k;i++) enc_in[i] = enc_indata[i];
 
@@ -99,84 +102,35 @@ int main(int argc, char *argv[]) {
   // Recovery for 0 to fec_k, position in data frames
   // recovery using good (crc ok) fec frames  
 
-  // Uncomment one of these lines to make the test 
-  // combination of data and or fec failure
- 
-// single failure
-// map_data // not se
-//  map_data[0] = 1;
-//  map_data[1] = 1;
-//  map_data[2] = 1;
-//  map_data[3] = 1;
-
-  // multiple failure
-//  map_data[0] = 1; map_data[1] = 1;
-//  map_data[1] = 1; map_data[2] = 1;
-//  map_data[2] = 1; map_data[3] = 1;
-//  map_data[0] = 1; map_data[2] = 1;
-//  map_data[0] = 1; map_data[3] = 1;
-//  map_data[1] = 1; map_data[3] = 1;
-//  map_data[0] = 1; map_data[1] = 1; map_data[2] = 1;
-//  map_data[1] = 1; map_data[2] = 1; map_data[3] = 1;
-//  map_data[0] = 1; map_data[1] = 1; map_data[3] = 1;
-
-// map_fec // not set
-//  map_fec[0] = 1;
-//  map_fec[1] = 1;
-//  map_fec[2] = 1;
-//  map_fec[3] = 1;
-
-  // multiple failure
-//  map_fec[0] = 1; map_fec[1] = 1;
-//  map_fec[0] = 1; map_fec[2] = 1;
-//  map_fec[0] = 1; map_fec[3] = 1;
-//  map_fec[1] = 1; map_fec[2] = 1;
-//  map_fec[1] = 1; map_fec[3] = 1;
-//  map_fec[2] = 1; map_fec[3] = 1;
-//  map_fec[0] = 1; map_fec[1] = 1; map_fec[2] = 1;
-//  map_fec[0] = 1; map_fec[1] = 1; map_fec[3] = 1;
-//  map_fec[0] = 1; map_fec[2] = 1; map_fec[3] = 1;
-//  map_fec[0] = 1; map_fec[1] = 1; map_fec[2] = 1; map_fec[3] = 1;
-
-  uint8_t byte_data,byte_fec;
-  for (uint8_t val_data=0;val_data<8;val_data++) {
-    for(int j_data=2;j_data>=0;j_data--) {
-      byte_data = (((uint8_t *)&val_data)[0] >> j_data) & 1;
-
-      for (uint8_t val_fec=0;val_fec<8;val_fec++) {
-        for(int j_fec=2;j_fec>=0;j_fec--) {
-          byte_fec = (((uint8_t *)&val_fec)[0] >> j_fec) & 1;
-
-
-          printf("%u", byte_data);
-          printf("%u", byte_fec);
-	}
+  // make all combination of failures map_data and map_fec 
+  for(uint8_t val_data=0;val_data<16;val_data++) {
+    for(int j_data=3;j_data>=0;j_data--) {
+      map_data[j_data] = (((uint8_t *)&val_data)[0] >> j_data) & 1;
+    }    
+    for(uint8_t val_fec=0;val_fec<16;val_fec++) {
+      for(int j_fec=3;j_fec>=0;j_fec--) {
+        map_fec[j_fec] = (((uint8_t *)&val_fec)[0] >> j_fec) & 1;
       }
-    }
-  }
-}
-
-
-//    if (i!=0) map_data[i-1]=1;
-/*
-    printf("------------------------------------------------------------------\n");
-    printf("map_data : %d %d %d %d\n",map_data[0],map_data[1],map_data[2],map_data[3]);
-
+      printf("------------------------------------------------------------------\n");
+      printf("[%d %d %d %d] [%d %d %d %d]\n",map_data[0],map_data[1],map_data[2],map_data[3],map_fec[0],map_fec[1],map_fec[2],map_fec[3]);
+  
       uint8_t map_cpt=0,fec_cpt=0;
       for (int i=0;i<fec_k;i++) { 
         if (map_data[i]) map_cpt++;
         if (map_fec[i]) fec_cpt++;
       }
-    
+      
       if (map_cpt == 0) {
         printf("no data failures\n");
         continue;
       }
-    
+      
       if (map_cpt > (fec_k - fec_cpt)) {
         printf("(%d) data failures, cannot be recovered with (%d) valid extra data redundancy\n",map_cpt,(fec_k-fec_cpt));
         continue;
       }
-    
+      
       apply_fec(map_data,map_fec,data_frame,fec_frame);
-*/
+    }
+  }
+}
