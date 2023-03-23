@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -I../zfec/zfec -g
 LDFLAGS=-lpcap 
 
-all: test_zfec_00 test_zfec_01 test_zfec_02
+all: test_zfec_02
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)

@@ -6,11 +6,58 @@
 #include "fec.h"
 
 #define PKT_DATA 1466
+#define fec_k 4
+#define fec_n 8
+// fec_n = original data + extra data (fec_k)
+
+
+/*****************************************************************************/
+void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fec_frame[]) {
+
+  uint8_t fec_d = (fec_n - fec_k);
+
+  bool fec_used[fec_d];
+
+  unsigned indexes[fec_k];
+  uint8_t *dec_in[fec_k];
+
+  uint8_t *dec_out[fec_d];
+  uint8_t dec_outdata[fec_d][PKT_DATA];
+  for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];}
+
+  // 1) set decoder options with dec_in and indexes
+  // 2) start building final frame with dec_out (decode will produce in dec_out, only packet not present in dec_in)
+  memset(fec_used,0,sizeof(fec_used));
+  for(int i=0; i < fec_k; i++)   {
+    if(map_data[i]) {
+      for (int j=0; j < fec_d; j++) {
+        if ((!map_fec[j])&&(!fec_used[j])) {
+          dec_in[i] = fec_frame[j];
+          indexes[i] = j+fec_k;
+	  fec_used[j]=1;
+	  break;
+	}
+      }
+    } else {
+      dec_in[i] = data_frame[i];
+      dec_out[i] = data_frame[i];
+      indexes[i] = i;
+    }
+  }
+
+  printf("decode inputs input [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_in[i]); printf(" ]\n");
+  printf("decode inputs index [");for (int i=0;i < fec_k; i++) printf(" %d ",indexes[i]); printf(" ]\n");
+
+  fec_t *fec_p = fec_new(fec_k, fec_n);
+  fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
+  free(fec_p);
+
+  printf("valid and decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
+}
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
-  uint8_t fec_k = 4, fec_n = 8; // fec_n = original data + extra data (fec_k)
   uint8_t fec_d = (fec_n - fec_k);
 
   uint8_t *enc_in[fec_k];        
@@ -44,8 +91,6 @@ int main(int argc, char *argv[]) {
 
   printf("set recovery options\n");
 
-  unsigned indexes[fec_k];
-  uint8_t *dec_in[fec_k];
   bool map_data[(fec_n-fec_k)];
   memset(map_data,0,sizeof(map_data)); // set with crc ok
   bool map_fec[fec_k];
@@ -65,7 +110,7 @@ int main(int argc, char *argv[]) {
 //  map_data[3] = 1;
 
   // multiple failure
-  map_data[0] = 1; map_data[1] = 1;
+//  map_data[0] = 1; map_data[1] = 1;
 //  map_data[1] = 1; map_data[2] = 1;
 //  map_data[2] = 1; map_data[3] = 1;
 //  map_data[0] = 1; map_data[2] = 1;
@@ -86,80 +131,52 @@ int main(int argc, char *argv[]) {
 //  map_fec[0] = 1; map_fec[2] = 1;
 //  map_fec[0] = 1; map_fec[3] = 1;
 //  map_fec[1] = 1; map_fec[2] = 1;
-  map_fec[1] = 1; map_fec[3] = 1;
+//  map_fec[1] = 1; map_fec[3] = 1;
 //  map_fec[2] = 1; map_fec[3] = 1;
 //  map_fec[0] = 1; map_fec[1] = 1; map_fec[2] = 1;
 //  map_fec[0] = 1; map_fec[1] = 1; map_fec[3] = 1;
 //  map_fec[0] = 1; map_fec[2] = 1; map_fec[3] = 1;
 //  map_fec[0] = 1; map_fec[1] = 1; map_fec[2] = 1; map_fec[3] = 1;
 
-  uint8_t map_cpt=0,fec_cpt=0;
-  for (int i=0;i<fec_k;i++) { 
-    if (map_data[i]) map_cpt++;
-    if (map_fec[i]) fec_cpt++;
-  }
+  uint8_t byte_data,byte_fec;
+  for (uint8_t val_data=0;val_data<8;val_data++) {
+    for(int j_data=2;j_data>=0;j_data--) {
+      byte_data = (((uint8_t *)&val_data)[0] >> j_data) & 1;
 
-  if (map_cpt == 0) {
-    printf("no data failures\n");
-    exit(-1);
-  }
+      for (uint8_t val_fec=0;val_fec<8;val_fec++) {
+        for(int j_fec=2;j_fec>=0;j_fec--) {
+          byte_fec = (((uint8_t *)&val_fec)[0] >> j_fec) & 1;
 
-  if (map_cpt > (fec_k - fec_cpt)) {
-    printf("(%d) data failures, cannot be recovered with (%d) valid extra data redundancy\n",map_cpt,(fec_k-fec_cpt));
-    exit(-1);
-  }
 
-  bool fec_used[fec_d];
-
-  memset(fec_used,0,sizeof(fec_used));
-  for(int i=0; i < fec_k; i++)   {
-    if(map_data[i]) {
-      for (int j=0; j < fec_d; j++) {
-        if ((!map_fec[j])&&(!fec_used[j])) {
-          dec_in[i] = fec_frame[j];
-          indexes[i] = j+fec_k;
-	  fec_used[j]=1;
-	  break;
+          printf("%u", byte_data);
+          printf("%u", byte_fec);
 	}
       }
-    } else {
-      dec_in[i] = data_frame[i];
-      indexes[i] = i;
     }
   }
-
-  printf("decode inputs input [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_in[i]); printf(" ]\n");
-  printf("decode inputs index [");for (int i=0;i < fec_k; i++) printf(" %d ",indexes[i]); printf(" ]\n");
-
-  uint8_t *dec_out[fec_d]; // only packet not present in input, will be reconstruct and writtent
-  uint8_t dec_outdata[fec_d][PKT_DATA];
-  for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];memset(dec_out[i],0,PKT_DATA);}
-
-  fec_p = fec_new(fec_k, fec_n);
-  fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
-  free(fec_p);
-
-  printf("decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
-
-  uint8_t *data_frame_out[fec_k];
-
-  // ERROR TO BE SET !!!!
-   
-  memset(fec_used,0,sizeof(fec_used));
-  for(int i=0; i < fec_k; i++)   {
-    if(map_data[i]) {
-      for (int j=0; j < fec_d; j++) {
-        if ((!map_fec[j])&&(!fec_used[j])) {
-          data_frame_out[i] = dec_out[j];
-	  fec_used[j]=1;
-	  break;
-	}
-      }
-    } else {
-      data_frame_out[i] = dec_in[i];
-    }
-  }
-
-  printf("rebuild outputs [");for (int i=0;i < fec_k; i++) printf(" %d ",*data_frame_out[i]); printf(" ]\n");
 }
 
+
+//    if (i!=0) map_data[i-1]=1;
+/*
+    printf("------------------------------------------------------------------\n");
+    printf("map_data : %d %d %d %d\n",map_data[0],map_data[1],map_data[2],map_data[3]);
+
+      uint8_t map_cpt=0,fec_cpt=0;
+      for (int i=0;i<fec_k;i++) { 
+        if (map_data[i]) map_cpt++;
+        if (map_fec[i]) fec_cpt++;
+      }
+    
+      if (map_cpt == 0) {
+        printf("no data failures\n");
+        continue;
+      }
+    
+      if (map_cpt > (fec_k - fec_cpt)) {
+        printf("(%d) data failures, cannot be recovered with (%d) valid extra data redundancy\n",map_cpt,(fec_k-fec_cpt));
+        continue;
+      }
+    
+      apply_fec(map_data,map_fec,data_frame,fec_frame);
+*/
