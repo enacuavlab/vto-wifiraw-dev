@@ -25,10 +25,11 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
   uint8_t dec_outdata[fec_d][PKT_DATA];
   for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];memset(dec_outdata[i],0,PKT_DATA);}
 
-  printf(">ref_frame [%d %d %d %d]\n",*ref_frame[0],*ref_frame[1],*ref_frame[2],*ref_frame[3]);
-  printf(">before out [%d %d %d %d]\n",*dec_out[0],*dec_out[1],*dec_out[2],*dec_out[3]);
-
-  // set decoder options with dec_in and indexes
+  // 1) set decoder options with dec_in and indexes
+  // 2) preallocate frameout, with suitable pointers to valid and/or rebuild data
+  //    (decode will produce in dec_out, only packet not present in dec_in)
+  uint8_t fec_cpt=0;
+  uint8_t *frame_out[fec_k];
   memset(fec_used,0,sizeof(fec_used));
   for(int i=0; i < fec_k; i++)   {
     if(map_data[i]) {
@@ -37,39 +38,25 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
           dec_in[i] = fec_frame[j];
           indexes[i] = j+fec_k;
 	  fec_used[j]=1;
+	  frame_out[i] = dec_out[fec_cpt];
+          fec_cpt++;
 	  break;
 	}
       }
     } else {
       dec_in[i] = data_frame[i];
       indexes[i] = i;
+      frame_out[i] = data_frame[i];
     }
   }
 
-  printf("decode inputs input [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_in[i]); printf(" ]\n");
-  printf("decode inputs index [");for (int i=0;i < fec_k; i++) printf(" %d ",indexes[i]); printf(" ]\n");
-
-  // fec_decode may modify dec_in, and cannot use later
   fec_t *fec_p = fec_new(fec_k, fec_n);
   fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
   free(fec_p);
 
-  printf("decode output [");for (int i=0;i < fec_k; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
-
-  // build final frame with dec_out (decode will produce in dec_out, only packet not present in dec_in)
-  memset(fec_used,0,sizeof(fec_used));
-  for(int i=0; i < fec_k; i++)   {
-    if(!map_data[i]) {
-      dec_out[i] = data_frame[i];
-    }
-  }
-
-  printf("valid and decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
-
   uint8_t check = 0;
   for (int i=0;i<fec_d;i++) {
-    printf("%d\n",memcmp(ref_frame[i],dec_out[i],PKT_DATA));
-    check = check + abs(memcmp(ref_frame[i],dec_out[i],PKT_DATA));
+    check = check + abs(memcmp(ref_frame[i],frame_out[i],PKT_DATA));
   }
   if (check) printf("!!!! \ncheck KO \n!!!!\n");
 }
@@ -119,8 +106,6 @@ int main(int argc, char *argv[]) {
   // recovery using good (crc ok) fec frames  
 
   // make all combination of failures map_data and map_fec 
-  
-//  apply_fec(map_data,map_fec,data_frame,fec_frame);
 
   for(uint8_t val_data=0;val_data<16;val_data++) {
     for(int j_data=3;j_data>=0;j_data--) {
