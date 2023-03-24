@@ -10,10 +10,8 @@
 #define fec_n 8
 // fec_n = original data + extra data (fec_k)
 
-uint8_t *enc_in[fec_k];        
-
 /*****************************************************************************/
-void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fec_frame[]) {
+void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fec_frame[], uint8_t *ref_frame[]) {
 
   uint8_t fec_d = (fec_n - fec_k);
 
@@ -25,8 +23,9 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
 
   uint8_t *dec_out[fec_d];
   uint8_t dec_outdata[fec_d][PKT_DATA];
-  for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];}
+  for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];memset(dec_outdata[i],0,PKT_DATA);}
 
+  printf(">ref_frame [%d %d %d %d]\n",*ref_frame[0],*ref_frame[1],*ref_frame[2],*ref_frame[3]);
   printf(">before out [%d %d %d %d]\n",*dec_out[0],*dec_out[1],*dec_out[2],*dec_out[3]);
 
   // set decoder options with dec_in and indexes
@@ -66,9 +65,13 @@ void apply_fec(bool *map_data, bool *map_fec, uint8_t *data_frame[], uint8_t *fe
   }
 
   printf("valid and decode outputs [");for (int i=0;i < fec_d; i++) printf(" %d ",*dec_out[i]); printf(" ]\n");
-  if (!memcmp(enc_in,dec_out,sizeof(uint8_t))) {
-    printf("!!!! \ncheck KO \n!!!!\n");
+
+  uint8_t check = 0;
+  for (int i=0;i<fec_d;i++) {
+    printf("%d\n",memcmp(ref_frame[i],dec_out[i],PKT_DATA));
+    check = check + abs(memcmp(ref_frame[i],dec_out[i],PKT_DATA));
   }
+  if (check) printf("!!!! \ncheck KO \n!!!!\n");
 }
 
 /*****************************************************************************/
@@ -76,6 +79,7 @@ int main(int argc, char *argv[]) {
 
   uint8_t fec_d = (fec_n - fec_k);
 
+  uint8_t *enc_in[fec_k];
   uint8_t enc_indata[fec_k][PKT_DATA];
   for (int i=0;i<fec_k;i++) enc_in[i] = enc_indata[i];
 
@@ -116,6 +120,8 @@ int main(int argc, char *argv[]) {
 
   // make all combination of failures map_data and map_fec 
   
+//  apply_fec(map_data,map_fec,data_frame,fec_frame);
+
   for(uint8_t val_data=0;val_data<16;val_data++) {
     for(int j_data=3;j_data>=0;j_data--) {
       map_data[j_data] = (((uint8_t *)&val_data)[0] >> j_data) & 1;
@@ -143,7 +149,7 @@ int main(int argc, char *argv[]) {
         continue;
       }
       
-      apply_fec(map_data,map_fec,data_frame,fec_frame);
+      apply_fec(map_data,map_fec,data_frame,fec_frame,enc_in);
     }
   }
 }
