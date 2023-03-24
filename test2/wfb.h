@@ -49,8 +49,9 @@ typedef struct {
 
 /*****************************************************************************/
 //int fec_k = 0; // NO FEC
-int fec_k = 4;
-int fec_n = 8;
+const int fec_k = 4;                // fec frame
+const int fec_n = 8;                // data frame + fec frame
+int fec_d = (fec_n - fec_k);  // data frame 
 
 #define PKT_SIZE 1510
 #define PKT_DATA (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(uint8_taIeeeHeader_data) - sizeof(wifi_packet_header_t) - sizeof(payload_header_t))

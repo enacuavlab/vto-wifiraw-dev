@@ -3,6 +3,12 @@
 
 /*****************************************************************************/
 typedef struct {
+  bool r_crc;
+  size_t r_len;
+  uint8_t *r_data;
+} rx_pkt_t;
+
+typedef struct {
   uint32_t received_packet_cnt;
   uint32_t wrong_crc_cnt;
   int8_t current_signal_dbm;
@@ -14,7 +20,7 @@ typedef struct  {
   int m_nRate;
   int m_nAntenna;
   int m_nRadiotapFlags;
-} __attribute__((packed)) PENUMBRA_RADIOTAP_DATA;
+} __attribute__((packed)) radiotap_data_t;
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -38,39 +44,43 @@ int main(int argc, char *argv[]) {
   if (pcap_setfilter(ppcap, &bpfprogram) == -1) exit(-1);
   int fd = pcap_get_selectable_fd(ppcap);
 
-  uint8_t rx_buff[PKT_SIZE];
-  uint8_t *rx_p0 = rx_buff; 
+  int crc = 0;
+  uint8_t rx_buff_cpt = 0;
+  uint8_t rx_buff[fec_n][PKT_SIZE];
+
+  rx_pkt_t data_pkt[fec_d];
+  rx_pkt_t fec_pkt[fec_k];
+
+  uint8_t *dec_in[fec_k];
+
+  bool fec_used[fec_d];
+
+  uint8_t *dec_out[fec_d];
+  uint8_t dec_outdata[fec_d][PKT_DATA];
+  for (int i=0;i<fec_d;i++) {dec_out[i] = dec_outdata[i];memset(dec_outdata[i],0,PKT_DATA);}
+
+  pkt_t *frame_out[fec_k];
+
+  uint8_t fec_cpt=0;
+
   struct pcap_pkthdr * ppcapPacketHeader = NULL;
 
   wifi_adapter_rx_status_t rx_status;
   memset(&rx_status,0,sizeof(rx_status));
-  fd_set readset;int ret, u16HeaderLen, n;bool crc;
-  PENUMBRA_RADIOTAP_DATA prd;
 
-  bool  crc_data[fec_n],crc_all,crc_second_half;
-
-  pkt_t pkts_data[fec_n];
-  for (int i=0;i<fec_n;i++) {pkts_data[i].data=malloc(PKT_SIZE); pkts_data[i].len=0;}
- 
-  uint8_t *fec_frame[fec_k];
-  uint8_t fec_frame_data[fec_k][PKT_DATA];
-  for (int i=0;i<fec_k;i++) fec_frame[i] = fec_frame_data[i];
-
-  uint8_t *dec_in[fec_k];
-
-  uint8_t *dec_out[fec_n - fec_k];
-  uint8_t dec_outdata[fec_n - fec_k][PKT_DATA];
-  for (int i=0;i<(fec_n - fec_k);i++) {dec_out[i] = dec_outdata[i];memset(dec_out[i],0,PKT_DATA);}
-
-  unsigned indexes[fec_k];
   fec_t  *fec_p = fec_new(fec_k,fec_n);
 
+  unsigned indexes[fec_k];
   int di = 0,fi = 0;
+  fd_set readset;int ret, u16HeaderLen, n;
+  radiotap_data_t prd;
+
   for(;;) {
     FD_ZERO(&readset);FD_SET(fd, &readset);
     ret = select(fd+1, &readset, NULL, NULL, NULL);
     if(ret == 0) break;
     if(FD_ISSET(fd, &readset)) {
+      uint8_t *rx_p0 = rx_buff[rx_buff_cpt];
       ret = pcap_next_ex(ppcap, &ppcapPacketHeader, (const u_char**)&rx_p0);
       if (ret < 0) exit(-1);
       if (ret != 1) continue;
@@ -80,7 +90,6 @@ int main(int argc, char *argv[]) {
       if (bytes < 0) continue;
       struct ieee80211_radiotap_iterator rti;
       if (ieee80211_radiotap_iterator_init(&rti,(struct ieee80211_radiotap_header *)rx_p0,ppcapPacketHeader->len,NULL)<0)continue;
-      PENUMBRA_RADIOTAP_DATA prd;
       while ((n = ieee80211_radiotap_iterator_next(&rti)) == 0) {
         switch (rti.this_arg_index) {
           case IEEE80211_RADIOTAP_FLAGS:
@@ -92,7 +101,7 @@ int main(int argc, char *argv[]) {
         }
       }
       rx_p0 += u16HeaderLen + n80211HeaderLength;
-      crc = (prd.m_nRadiotapFlags & 0x40) == 1; 
+      crc = ((prd.m_nRadiotapFlags & 0x40) == 0);
       if(crc) rx_status.wrong_crc_cnt++;
       rx_status.received_packet_cnt++;
 
@@ -102,66 +111,87 @@ int main(int argc, char *argv[]) {
 
       rx_p0 += sizeof(payload_header_t);
 
-      if (fec_k > 0) {  // finding bloc containing arranged DATA and FEC frames
+      if (fec_k > 0) {  // finding bloc containing data and fec frames
         bool reset=false;
         if (temp > 0) {     // data frame candidate
-          if (di < fec_n) {
+          if (di < fec_d) {
   	    if (di >= fi) { 
-  	      memcpy(pkts_data[di].data,rx_p0,len);pkts_data[di].len=len;crc_data[di]=crc;di++;
+  	      data_pkt[di].r_crc = crc;
+	      data_pkt[di].r_len = len;
+	      data_pkt[di].r_data = rx_p0;
+	      di++;
   	    } else reset=true;
   	  } else reset=true;
         } else {           // fec candidate
           if (fi < fec_k) {
             if (di > 0) {  // at least one data frame before fec data
 	      len = -len;
-  	      memcpy((void *)fec_frame[fi],rx_p0,len);
+  	      fec_pkt[di].r_crc = crc;
+  	      fec_pkt[di].r_len = len;
+  	      fec_pkt[di].r_data = rx_p0;
 	      fi++;
   	    } else reset=true;
   	  } else reset=true;
         }
         if (reset) {di = 0; fi = 0;}
-        if ((di == fec_n) && (fi == fec_k)) { // the block is complete
+        if (di == fec_d) {
 
-// PATCH TEST
-          crc_data[0] = 1; crc_data[1] = 1; crc_data[2] = 1; crc_data[3] = 1; // test recovery  !!!!
+          int map_cpt=0;
+          for (int i=0;i<fec_d;i++) if (data_pkt[i].r_crc) map_cpt++;
+	  if (map_cpt>0) {
 
-          crc_all = 0; crc_second_half = 0;
-	  for (int i=0;i<fec_n;i++) {
-	    crc_all = crc_all && crc_data[i]; 
-	    if (i>=(fec_n-fec_k)) crc_second_half = crc_second_half && crc_data[i];
-	  }
+            if (fi == fec_k) { // the block is complete
 
-	  printf("%d %d\n",crc_all,crc_second_half);
+              fec_cpt=0;
+              for (int i=0;i<fec_k;i++) if (fec_pkt[i].r_crc) fec_cpt++;
+  	      if (map_cpt <= (fec_k - fec_cpt)) { // there are enought valid fec to recover faulty data
 
-	  if (!crc_second_half) {  
-	    if (crc_all) {                       // only first half pkts can be recovered
-              for(int i=0; i < fec_k; i++)   {
-                if(crc_data[i]) {dec_in[i] = fec_frame[i];indexes[i] = i+fec_k;}
-                else {  dec_in[i] = pkts_data[i].data; indexes[i] = i;}
+                // 1) set decoder options with dec_in and indexes
+                // 2) preallocate frameout, with suitable pointers to valid and/or rebuild data
+                //    (decode will produce in dec_out, only packet not present in dec_in)
+                fec_cpt=0;
+                memset(fec_used,0,sizeof(fec_used));
+                for(int i=0; i < fec_k; i++)                 {
+                  if(data_pkt[di].r_crc) {
+                    for (int j=0; j < fec_d; j++) {
+                      if ((!fec_pkt[j].r_crc)&&(!fec_used[j])) {
+                        dec_in[i] = fec_pkt[j].r_data;
+                        indexes[i] = j+fec_k;
+                        fec_used[j]=1;
+                        fec_cpt++;
+
+                        frame_out[i]->data = dec_out[fec_cpt];
+		        frame_out[i]->len =  fec_pkt[j].r_len; // why not !
+                        break;
+                      }
+                    }
+                  } else {
+                    dec_in[i] = data_pkt[i].r_data;
+                    indexes[i] = i;
+
+                    frame_out[i]->data = data_pkt[i].r_data;
+	            frame_out[i]->len = data_pkt[i].r_len;
+                  }
                 }
-              }
-              fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
 
-	      printf("fec_decode\n");
+                fec_decode(fec_p, (const uint8_t**)dec_in, dec_out, indexes, PKT_DATA);
+                free(fec_p);
 
-	      uint8_t error_pos = 0;             // rebuild output
-              for (int i=0;i<fec_k;i++) {
-                if (crc_data[i]) { memcpy(pkts_data[i].data,dec_out[error_pos],PKT_DATA); error_pos++; }
-                else { memcpy(pkts_data[i].data,dec_in[i],PKT_DATA);}
+                for (int i=0;i<fec_n;i++) {
+                  write(STDOUT_FILENO,frame_out[i]->data,frame_out[i]->len);
+                  fflush(stdout);
+                }
 	      }
-            }
-
-            for (int i=0;i<fec_n;i++) {
-              write(STDOUT_FILENO, pkts_data[i].data,  pkts_data[i].len);
-              fflush(stdout);
-            }
-
-	  di=0;fi=0;
+	      fi=0;
+	    }
+	  }
+	  di=0;
 	}
       } else {  // not using fec
          write(STDOUT_FILENO, rx_p0,  len);
          fflush(stdout);
       }
     }
+    rx_buff_cpt++;
   }
 }
