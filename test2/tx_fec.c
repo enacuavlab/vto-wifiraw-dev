@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 	  ((payload_header_t *)(pkt_p->data + headerSize2))->data_length = pkt_p->len;
 	  ret = pcap_inject(ppcap, pkt_p->data, PKT_SIZE);
 
-	  printf("(%d)(%d)(%ld)\n", ret,nb_seq, pkt_p->len);
+	  printf("(%d)(%d)(%ld)\n", nb_seq, ret,pkt_p->len);fflush(stdout);
 
 	  pkt_p->len = 0; 
 	  nb_seq++;

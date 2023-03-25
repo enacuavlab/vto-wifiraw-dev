@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
   	  } else reset=true;
         }
 
-        printf("(%d)(%d)(%d)(%d)\n",di,fi,reset,true);fflush(stdout);
+        printf("(%d)(%d)(%d)(%d)(%d)(%d)\n",seq_num,len,di,fi,reset,true);fflush(stdout);
 
         if (reset) {di = 0; fi = 0;}
         if (di == fec_d) {
