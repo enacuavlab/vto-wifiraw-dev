@@ -105,6 +105,8 @@ int main(int argc, char *argv[]) {
       if(crc) rx_status.wrong_crc_cnt++;
       rx_status.received_packet_cnt++;
 
+      uint32_t seq_num = ((wifi_packet_header_t*)rx_p0)->sequence_number;
+
       rx_p0 += sizeof(wifi_packet_header_t);
       uint32_t len = (((payload_header_t*)rx_p0)->data_length);
       int32_t temp = (len << 13); // fec packets have data_length signed bit set
@@ -133,6 +135,9 @@ int main(int argc, char *argv[]) {
   	    } else reset=true;
   	  } else reset=true;
         }
+
+        printf("(%d)(%d)(%d)(%d)\n",di,fi,reset,true);fflush(stdout);
+
         if (reset) {di = 0; fi = 0;}
         if (di == fec_d) {
 
@@ -191,7 +196,7 @@ int main(int argc, char *argv[]) {
          write(STDOUT_FILENO, rx_p0,  len);
          fflush(stdout);
       }
+      rx_buff_cpt++;
     }
-    rx_buff_cpt++;
   }
 }

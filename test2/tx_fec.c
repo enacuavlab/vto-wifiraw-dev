@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   fec_t* fec_p = fec_new(fec_k,fec_n);
 
   fd_set rfds;struct timeval timeout;bool usefec;pkt_t *pkt_p;int inl, ret, nb_pkts;int nb_curr=0, nb_seq=0;
-  bool interl = true;int di = 0,fi = 0, li=0;  
+  bool interl;int di = 0,fi = 0, li=0;  
   for(;;) {
     FD_ZERO(&rfds);
     FD_SET(STDIN_FILENO, &rfds);
@@ -69,22 +69,21 @@ int main(int argc, char *argv[]) {
           // set unsigned data_length signed bit, to identify fec frame from data frame
           for(int i=0; i<fec_k; ++i)  pkts_fec[i].len = (-PKT_DATA);
         }
-	di=0;fi=0;li=0;
+	di=0;fi=0;li=0;interl = true;
         while ((usefec && ((di < fec_d) || (fi < fec_k)))
           || (!usefec && (li < nb_pkts))) {                         // send data and fec interleaved, when needed
 	  if (usefec) {	
-            if (di < fec_d) {
-              if (((fi < fec_k) && (interl)) || (fi == fec_k)) {pkt_p = &pkts_data[di]; di ++;}
+	    if ((di < fec_d)&&(interl)) { pkt_p = &pkts_data[di]; di ++; if(fi<fec_k) interl = !interl; }
+	    else {
+              if (fi < fec_k) { pkt_p = &pkts_fec[fi]; fi ++; if(di<fec_d) interl = !interl; }
 	    }
-  	    if ((fec_k) && (fi < fec_k)) {
-              if (((di < fec_d) && (!interl)) || (di == fec_d)) {pkt_p = &pkts_fec[fi]; fi ++;}
-	    }
-	  } else {pkt_p = &pkts_data[li]; li ++;}
+	  } else { pkt_p = &pkts_data[li]; li ++; }
 
-          interl = !interl; // toggle
           ((wifi_packet_header_t *)(pkt_p->data + headerSize1))->sequence_number = nb_seq;
 	  ((payload_header_t *)(pkt_p->data + headerSize2))->data_length = pkt_p->len;
 	  ret = pcap_inject(ppcap, pkt_p->data, PKT_SIZE);
+
+	  printf("(%d)(%d)(%ld)\n", ret,nb_seq, pkt_p->len);
 
 	  pkt_p->len = 0; 
 	  nb_seq++;
