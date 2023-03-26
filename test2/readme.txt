@@ -1,7 +1,13 @@
 
-tshark -i $node
+sudo ./packetspammer -n 1 -s 2259 $node
+                          -s 52
 
-./packetspammer -n 1 -s 4092 $node
+tshark -i $node -Y 'frame.len==2291'
+                               84
+
+tshark -i $node
+=>
+42 208.599438451 23:23:23:23:23:23 → Broadcast    LLC 2291 U, func=UI; SNAP, OUI 0x000000 (Officially Xerox, but 0:0:0:0:0:0 is more common), PID 0x88B5
 
 -------------------------------------------------------------------------------
 sudo ./rx_fec $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false

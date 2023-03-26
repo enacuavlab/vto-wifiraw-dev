@@ -1,13 +1,26 @@
 #include <sys/resource.h>
+#include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
 #include <pcap.h>
 
-int n80211HeaderLength;
+
+/*****************************************************************************/
+typedef struct {
+  uint32_t data_length;
+} __attribute__((packed)) payload_header_t; // idem
 
 /*****************************************************************************/
 void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *pkt) {
+
+  uint8_t *pu8 = pkt;
+  uint32_t inl = (((payload_header_t *)pu8)->data_length);
+  printf("CAPTURED (%d)\n",inl);
+  for (int i=0;i<45;i++) printf(" %x ",pkt[i]);
+  printf("\n");fflush(stdout);
+}
+/*
   int u16HeaderLen = (pkt[2] + (pkt[3] << 8));
   if (!(hdr->len < (u16HeaderLen + n80211HeaderLength))) {
     int bytes = hdr->len - (u16HeaderLen + n80211HeaderLength);
@@ -19,7 +32,7 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
     }
   }
 }
-
+*/
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
@@ -44,10 +57,13 @@ int main(int argc, char *argv[]) {
   if (pcap_activate(ppcap) !=0)                exit(-1);
   if (pcap_setnonblock(ppcap, 1, errbuf) != 0) exit(-1);
 
+  uint32_t channel_id = 0;
   int nLinkEncap = pcap_datalink(ppcap);
   if (nLinkEncap == DLT_IEEE802_11_RADIO) {
-    n80211HeaderLength = 0x18;
-    sprintf(szProgram, "ether[0x00:2] == 0x08bf && ether[0x04:2] == 0xff%.2x", port); // match on frametype, 1st byte of mac (ff) and portnumber
+//    n80211HeaderLength = 0x18;
+    sprintf(szProgram, "ether[0x0a:2]==0x5742");
+//    sprintf(szProgram, "ether[0x0a:2]==0x5742 && ether[0x0c:4] == 0x%08x", channel_id); // chane
+//    sprintf(szProgram, "ether[0x00:2] == 0x08bf && ether[0x04:2] == 0xff%.2x", port); // match on frametype, 1st byte of mac (ff) and portnumber
   } else exit(-1);
   if (pcap_compile(ppcap, &bpfprogram, szProgram, 1, 0) == -1) exit(-1);
   if (pcap_setfilter(ppcap, &bpfprogram) == -1) exit(-1);
@@ -56,6 +72,6 @@ int main(int argc, char *argv[]) {
 //    program = string_format("ether[0x0a:2]==0x5742 && ether[0x0c:4] == 0x%08x", channel_id);
 
   printf("RUNNING\n");fflush(stdout);
-  int loop_status = pcap_loop(ppcap, -1, captured_packet, NULL);
+  int loop_status = pcap_loop(ppcap, 0, captured_packet, NULL);
   return 0;
 }
