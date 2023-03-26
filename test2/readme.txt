@@ -1,3 +1,9 @@
+
+tshark -i $node
+
+./packetspammer -n 1 -s 4092 $node
+
+-------------------------------------------------------------------------------
 sudo ./rx_fec $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
 

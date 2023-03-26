@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   char errbuf[PCAP_ERRBUF_SIZE];
-  ppcap_set_immediate_modecap_t *ppcap = pcap_create(argv[1], errbuf);
+  pcap_t *ppcap = pcap_create(argv[1], errbuf);
 
   if (pcap_set_snaplen(ppcap, 4096) !=0) exit(-1);
   if (pcap_set_promisc(ppcap, 1) != 0) exit(-1);
