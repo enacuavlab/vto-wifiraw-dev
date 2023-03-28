@@ -35,11 +35,11 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
 
   write(STDOUT_FILENO, &pkt[payload_data], paysize);
 */
-  uint32_t n,crc;
+  uint32_t n;
   const uint8_t *rx_p0 = pkt;
   uint32_t u16HeaderLen = (rx_p0[2] + (rx_p0[3] << 8));
   if (hdr->len >= (u16HeaderLen + n80211HeaderLength)) {
-    int bytes = hdr->len - (u16HeaderLen + n80211HeaderLength);
+    uint32_t bytes = hdr->len - (u16HeaderLen + n80211HeaderLength);
     if (bytes >= 0) {
       struct ieee80211_radiotap_iterator rti;
       if (ieee80211_radiotap_iterator_init(&rti,(struct ieee80211_radiotap_header *)rx_p0,hdr->len,NULL)>=0) {
@@ -53,12 +53,23 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
               break;
           }
         }
-        rx_p0 += u16HeaderLen + n80211HeaderLength;
-        int checksum_correct = ((prd.m_nRadiotapFlags & IEEE80211_RADIOTAP_F_BADFCS) == 0);
-        if(!checksum_correct) rx_status.wrong_crc_cnt++;
-        rx_status.rcv_pkt_cnt++;
+	printf("bytes (%u)\n",bytes);
+	uint32_t crc=0xFFFFFFFF;
+	for(size_t i=0;i<bytes;i++) {
+	  uint8_t ch=pkt[i];
+	  for(size_t j=0;j<8;j++) {
+	    uint32_t b=(ch^crc)&1;
+	    crc>>=1;
+	    if(b) crc=crc^0xEDB88320;
+	     ch>>=1;
+	   }
+	}
+	uint32_t ref_crc;
+        memcpy(&ref_crc, &pkt[bytes-4], sizeof(ref_crc));
+	printf("(%u)(%u)\n",ref_crc,~crc);
+//	if (~crc!=ref_crc)rx_status.wrong_crc_cnt++;
+//	printf("(%u)\n",rx_status.wrong_crc_cnt);
       
-        printf("(%d)(%d)(%d)\n",bytes,rx_status.wrong_crc_cnt,rx_status.signal_dbm);
       }
     }
   }
