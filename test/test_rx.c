@@ -58,7 +58,7 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
         if(!checksum_correct) rx_status.wrong_crc_cnt++;
         rx_status.rcv_pkt_cnt++;
       
-        printf("(%d)(%d)\n",bytes,rx_status.wrong_crc_cnt);
+        printf("(%d)(%d)(%d)\n",bytes,rx_status.wrong_crc_cnt,rx_status.signal_dbm);
       }
     }
   }
