@@ -3,7 +3,6 @@
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
-  printf("%ld\n",PKT_SIZE - PKT_DATA);
   setpriority(PRIO_PROCESS, 0, -10);
 
   uint8_t buf[PKT_SIZE];
@@ -53,7 +52,8 @@ int main(int argc, char *argv[]) {
 
       memcpy(pu8_payload_head,&inl,sizeof(inl));
 
-      ret = pcap_inject(ppcap, buf, PKT_SIZE);
+      ret = pcap_inject(ppcap, buf, sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(uint32_t) + inl );
+//      ret = pcap_inject(ppcap, buf, PKT_SIZE);
 
 //      printf("(%d)(%d)\n",ret,inl);
     }
