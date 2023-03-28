@@ -24,7 +24,16 @@ static const uint8_t radiotap_hdr[] = {
   0x00, // <-- antnoise
   0x01, // <-- antenna
 };
-
+/*
+static uint8_t radiotap_hdr[] = {
+  0x00, 0x00, // <-- radiotap version
+  0x0c, 0x00, // <- radiotap header length
+  0x04, 0x80, 0x00, 0x00, // <-- radiotap present flags
+  0x00, // datarate (will be overwritten later)
+  0x00,
+  0x00, 0x00
+};
+*/
 static const char wifi_hdr[] = {
   0x88, 0x00, 0x30, 0x00,             // frame type to match on receiver
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // port to be set and to match on receiver
@@ -40,6 +49,6 @@ static const uint8_t llc_hdr[] = {
 };
 
 #define PKT_SIZE 1510
-#define PKT_DATA (PKT_SIZE - sizeof(radiotap_hdr) - sizeof(wifi_hdr) - sizeof(llc_hdr))
+#define PKT_DATA (PKT_SIZE - sizeof(radiotap_hdr) - sizeof(wifi_hdr) - sizeof(llc_hdr) - sizeof(uint32_t))
 
 #endif /* __WFB_H */

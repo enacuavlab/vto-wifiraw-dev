@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
 
   memcpy(buf, radiotap_hdr, sizeof(radiotap_hdr));
   buf[2] = (sizeof(radiotap_hdr));
+
   pu8 += sizeof(radiotap_hdr);
 
   memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
@@ -54,7 +55,7 @@ int main(int argc, char *argv[]) {
 
       ret = pcap_inject(ppcap, buf, PKT_SIZE);
 
-      printf("(%d)(%d)\n",ret,inl);
+//      printf("(%d)(%d)\n",ret,inl);
     }
   }
 }
