@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -I../zfec/zfec -g
 LDFLAGS=-lpcap 
 
-all: test_rx test_tx # test_zfec_00 test_zfec_01 test_zfec_02 packetspammer
+all: test_rx test_tx
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -11,6 +11,18 @@ all: test_rx test_tx # test_zfec_00 test_zfec_01 test_zfec_02 packetspammer
 
 ../zfec/zfec/fec.o: ../zfec/zfec/fec.c
 	gcc -c -o $@ $< $(CPPFLAGS)
+
+tx_fec: tx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+rx_fec: rx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+tx: tx.o ../radiotap-library/radiotap.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+rx: rx.o ../radiotap-library/radiotap.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 test_tx: test_tx.o ../radiotap-library/radiotap.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
@@ -31,4 +43,4 @@ packetspammer: packetspammer.o
 	gcc -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f test_tx test_rx test_zfec_00 test_zfec_01 test_zfec_02 packetspammer  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	rm -f packetspammer  tx_fec rx_fec tx rx test_tx test_rx test_zfec_00 test_zfec_01 test_zfec_02  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o

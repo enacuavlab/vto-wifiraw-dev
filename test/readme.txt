@@ -1,3 +1,24 @@
+-------------------------------------------------------------------------------
+sudo ./test_rx $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1940,height=1080 ! timeoverlay ! tee name=t t. ! queue ! autovideosink sync=false t. ! queue ! x264enc tune=zerolatency byte-stream=true bitrate=10000 ! fdsink | sudo ./test_tx $node
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay ! tee name=t t. ! queue ! autovideosink sync=false t. ! queue ! x264enc tune=zerolatency byte-stream=true bitrate=2000000  ! fdsink | sudo ./tx_fec $node
+
+
+
+-------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
 https://www.kernel.org/doc/html/next/networking/mac80211-injection.html
 https://www.kernel.org/doc/html/next/networking/radiotap-headers.html
 

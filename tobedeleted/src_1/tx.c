@@ -7,12 +7,9 @@
 #include <stdint.h>
 #include <pcap.h>
 
-#include "fec.h"
-
 
 /*****************************************************************************/
 #define MAX_PACKET_LENGTH 4192
-#define MAX_DATA_OR_FEC_PACKETS_PER_BLOCK 32
 
 
 /*****************************************************************************/
@@ -89,47 +86,11 @@ void init(char *name,mon_interface_t *interface) {
   }
 }
 
-
-/*****************************************************************************/
-void transmit_block(fec_t* fec_p) {
-
-  int data_packets_per_block = 8;
-  int fec_packets_per_block = 4;
-  int packet_length = 1450;
-  uint8_t *data_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
-  uint8_t *fec_blocks[MAX_DATA_OR_FEC_PACKETS_PER_BLOCK];
-
-  memset(block[fragment_idx], '\0', MAX_FEC_PAYLOAD);
-  memcpy(block[fragment_idx], &packet_hdr, sizeof(packet_hdr));
-  memcpy(block[fragment_idx] + sizeof(packet_hdr), buf, size);
-
-  max_packet_size = max(max_packet_size, sizeof(packet_hdr) + size);
-  
-  fec_encode(fec_p, (const uint8_t**)block, block + fec_k, max_packet_size);
-
-  while (fragment_idx < fec_n) {
-   send_block_fragment(max_packet_size);
-        fragment_idx += 1;
-    }
-    block_idx += 1;
-    fragment_idx = 0;
-    max_packet_size = 0;
-
-
-//  fec_encode(packet_length, data_blocks, data_packets_per_block, (unsigned char **)fec_blocks, fec_packets_per_block);
-//  fec_encode(data_blocks, (unsigned char **)fec_blocks, fec_packets_per_block, data_packets_per_block, packet_length);
-}
-
-
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
   mon_interface_t interface;
   init(argv[1],&interface);
-
-//  init_fec();
-  fec_t* fec_p =fec_new(4,8);
-
 
   uint8_t packet_transmit_buffer[MAX_PACKET_LENGTH];
   size_t packet_header_length = 0;
@@ -148,8 +109,6 @@ int main(int argc, char *argv[]) {
 
       int in = read(STDIN_FILENO, packet_transmit_buffer + packet_header_length, param_packet_length);
       int plen = sizeof(wifi_packet_header_t) + packet_header_length + param_packet_length;
-
-      transmit_block(fec_p);
 
       int r = pcap_inject(interface.ppcap, packet_transmit_buffer, plen);
       if (r != plen) {
