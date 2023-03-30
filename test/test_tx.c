@@ -50,10 +50,9 @@ int main(int argc, char *argv[]) {
       inl=read(STDIN_FILENO, pu8, PKT_DATA);   // fill pkts with read input
       if (inl < 0) continue;
 
-      memcpy(pu8_payload_head,&inl,sizeof(inl));
+      memcpy(pu8_payload_head,&inl,sizeof(inl)); // copy variable payload length before payload data
 
-      ret = pcap_inject(ppcap, buf, sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr) );
-//      ret = pcap_inject(ppcap, buf, PKT_SIZE);
+      ret = pcap_inject(ppcap, buf, PKT_SIZE);
 
       printf("(%d)(%d)\n",ret,inl);
     }

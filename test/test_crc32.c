@@ -3,13 +3,14 @@
 #include <stdio.h>
 #include <string.h>
 
-
+// (radiotap + 802.11) : wireshark capture copy as escapted strings ...
 uint8_t pkt[] = {
-"\x00\x00\x20\x00\xae\x40\x00\xa0\x20\x08\x00\xa0\x20\x08\x00\x00" \
-"\x10\x0c\x3c\x14\x40\x01\xef\x00\x1e\x00\x00\x00\xf2\x00\xea\x01" \
-"\x88\x00\x00\x00\xff\x05\xff\xff\xff\xff\x23\x23\x23\x23\x23\x23" \
-"\xff\xff\xff\xff\xff\xff\x40\x00\x20\x00\xaa\xaa\x03\x00\x00\x00" \
-"\x88\xb5\x59\x55\x46\x7a"}; // captured with wireshark to check 4 last bytes crc32
+  0x00,0x00,0x20,0x00,0xae,0x40,0x00,0xa0,0x20,0x08,0x00,0xa0,0x20,0x08,0x00,0x00,
+  0x10,0x0c,0x3c,0x14,0x40,0x01,0xd7,0x00,0x5d,0x00,0x00,0x00,0xd6,0x00,0xd8,0x01,
+  0x88,0x00,0x00,0x00,0xff,0x05,0xff,0xff,0xff,0xff,0x23,0x23,0x23,0x23,0x23,0x23,
+  0xff,0xff,0xff,0xff,0xff,0xff,0x00,0x00,0x20,0x00,0xaa,0xaa,0x03,0x00,0x00,0x00,
+  0x88,0xb5,0xa9,0xe2,0x25,0x4a };
+
 
 //uint8_t pkt[] = {'1','2','3','4','5','6','7','8','9'}; // sample with knowm crc32 = cbf43926
 
@@ -61,14 +62,16 @@ int main(int argc, char *argv[]) {
   uint32_t bytes=(sizeof(pkt));
   printf("(%d)\n",bytes);
 
-  uint32_t a = crc32(pkt,bytes-4);
+  uint32_t crc;
+  uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8));
+  uint32_t dataLen = bytes - u16HeaderLen - sizeof(crc);
+  uint32_t a = crc32(&pkt[u16HeaderLen],dataLen);
 
   build_crc32_table();
-  uint32_t b = crc32_fast(pkt,bytes-4);
+  uint32_t b = crc32_fast(&pkt[u16HeaderLen],dataLen);
 
-  printf("(%x)\n",pkt[bytes-5]);
-  uint32_t c;
-  memcpy(&c,&pkt[bytes-5],sizeof(c));
+  memcpy(&crc,&pkt[bytes-sizeof(crc)],sizeof(crc));
 
-  printf("(%x)(%x)(%x)\n",a,b,c);
+  printf("(%x)(%x)(%x)\n",a,b,crc);
+  if (crc == b) printf("Check OK\n");else printf("NO Check\n");
 }
