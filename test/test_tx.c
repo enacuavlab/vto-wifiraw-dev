@@ -53,8 +53,6 @@ int main(int argc, char *argv[]) {
       memcpy(pu8_payload_head,&inl,sizeof(inl)); // copy variable payload length before payload data
 
       ret = pcap_inject(ppcap, buf, PKT_SIZE);
-
-      printf("(%d)(%d)\n",ret,inl);
     }
   }
 }

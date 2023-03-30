@@ -155,7 +155,7 @@ main(int argc, char *argv[])
 		buf[i] = (rand() % 255) + 1;
 	}
 
-//	while (!fBrokenSocket && number) {
+	while (!fBrokenSocket && number) {
 		uint8_t *pu8 = buf;
 
 		// radiotap header
@@ -186,8 +186,6 @@ main(int argc, char *argv[])
 	      	write(STDOUT_FILENO, paydata, paysize);
 		printf(" }\n");
 
-		int packet_size =  sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(paysize) + paysize;
-/*
 		// add number and size as payload
 		pu8 += sprintf((char *)pu8, "%06d ", number);
 		pu8 += sprintf((char *)pu8, "%06d ", size);
@@ -198,7 +196,7 @@ main(int argc, char *argv[])
 			printf("size is too small: %d\n", size);
 			return 1;
 		}
-*/
+
 		r = pcap_inject(ppcap, buf, packet_size);
 
 		if(r != packet_size) {
@@ -210,7 +208,7 @@ main(int argc, char *argv[])
 			usleep(nDelay);
 		}
 		number--;
-//	}
+	}
 
 	return 0;
 }
