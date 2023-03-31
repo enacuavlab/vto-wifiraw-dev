@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
   unsigned block_nums[fec_d];
   for (int i=0;i<fec_d;i++) block_nums[i] = i+fec_k;
   fec_t* fec_p = fec_new(fec_k,fec_n);
- 
+
+
   char errbuf[PCAP_ERRBUF_SIZE];
   pcap_t *ppcap = pcap_create(argv[1], errbuf);
 
@@ -93,7 +94,7 @@ int main(int argc, char *argv[]) {
            memcpy(pu8_inj + headerSize, &u16_len, sizeof(u16_len));
            ret = pcap_inject(ppcap, pu8_inj, PKT_SIZE);
 
-           printf("(%d)(%d)\n", ret,u16_len);fflush(stdout);
+        //   printf("(%d)(%d)\n", ret,u16_len);fflush(stdout);
 	}
 	memset(len_data,0,sizeof(len_data));
         curr = 0;

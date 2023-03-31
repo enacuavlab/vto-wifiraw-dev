@@ -53,8 +53,12 @@ static const uint8_t llc_hdr[] = {
 #define PKT_SIZE 1510
 #define PKT_DATA (PKT_SIZE - sizeof(radiotap_hdr) - sizeof(wifi_hdr) - sizeof(llc_hdr) - sizeof(uint32_t))
 
-const int fec_k = 4;          // fec frame
-const int fec_n = 8;          // data frame + fec frame
-int fec_d = (fec_n - fec_k);  // data frame 
+//const int fec_k = 4;          // fec frame
+//const int fec_n = 8;          // data frame + fec frame
+//int fec_d = (fec_n - fec_k);  // data frame 
+
+#define fec_k 4
+#define fec_n 8
+#define fec_d (fec_n - fec_k)
 
 #endif /* __WFB_H */
