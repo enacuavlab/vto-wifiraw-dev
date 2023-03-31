@@ -12,6 +12,8 @@
 #include <pcap.h>
 #include <fcntl.h>
 
+#include "fec.h"
+
 static const uint8_t radiotap_hdr[] = {
   0x00, 0x00, // <-- radiotap version
   0x00, 0x00, // <- radiotap header length
