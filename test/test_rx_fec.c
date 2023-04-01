@@ -17,8 +17,8 @@ typedef struct {
   uint8_t pay[PKT_DATA];
 } pkt_t;
 pkt_t pkt_fec[fec_k],pkt_data[fec_d];
-uint8_t cpt_fec=0,cpt_data=0;
-uint32_t crc_fec=0, crc_data=0;
+uint8_t cpt_fec=0,cpt_data=0,cpt_send=0;
+uint32_t crc_data=0;
 
 /*****************************************************************************/
 #define RADIOTAP_DBM_ANTSIGNAL_OFF 22
@@ -35,50 +35,49 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
   rx_status.rcv_pkt_cnt ++;  
 
   if (bytes >= captlimit) {
-    rx_status.signal_dbm = pkt[RADIOTAP_DBM_ANTSIGNAL_OFF];
-
-    const uint8_t *s = &pkt[u16HeaderLen]; // compute CRC32 for [sizeof(wifi_hdr) + sizeof(llc_hdr) + data]
-    uint32_t crc=0xFFFFFFFF;
-    for(uint32_t i=0;i<dataLen;i++) {
-      uint8_t ch=s[i];
-      uint32_t t=(ch^crc)&0xFF;
-      crc=(crc>>8)^crc32_table[t];
-    }
-    uint32_t crc_rx;                 // retrieve CRC32 from last uint32_t
-    memcpy(&crc_rx, &pkt[bytes - sizeof(crc_rx)], sizeof(crc_rx));
-    if (crc_rx!=~crc)rx_status.wrong_crc_cnt++;
-
     uint32_t payloadSize = bytes - captlimit;
     if (payloadSize > 0) {
       const uint8_t *pu8 = &pkt[captlimit - sizeof(uint32_t)];
-      uint16_t inl;
-      memcpy(&inl,pu8, sizeof(inl));
-      pu8 += sizeof(inl);
-      int16_t tmp = (inl << 8); // dispatch data frames and fec frames
+      uint16_t len;
+      memcpy(&len,pu8, sizeof(len));
+      pu8 += sizeof(len);
+      int16_t tmp = (len << 8); // dispatch data frames and fec frames
       if (tmp < 0) {
-        memcpy(pkt_data[cpt_data].pay, pu8, inl);
-        pkt_data[cpt_data].len = inl;
+
+        const uint8_t *s = &pkt[u16HeaderLen]; // compute CRC32 for [sizeof(wifi_hdr) + sizeof(llc_hdr) + data]
+        uint32_t crc=0xFFFFFFFF;
+        for(uint32_t i=0;i<dataLen;i++) {
+          uint8_t ch=s[i];
+          uint32_t t=(ch^crc)&0xFF;
+          crc=(crc>>8)^crc32_table[t];
+        }
+
+        uint32_t crc_rx;                 // retrieve CRC32 from last uint32_t
+        memcpy(&crc_rx, &pkt[bytes - sizeof(crc_rx)], sizeof(crc_rx));
+
+        memcpy(pkt_data[cpt_data].pay, pu8, len);
+        pkt_data[cpt_data].len = len;
         pkt_data[cpt_data].crc = (crc_rx==~crc);
 	cpt_data++;
-	crc_data |=1 << cpt_data;
+
+        if (pkt_data[cpt_data].crc) {
+          rx_status.signal_dbm = pkt[RADIOTAP_DBM_ANTSIGNAL_OFF];
+          write(STDOUT_FILENO,pu8,len);
+          fflush(stdout);
+	  cpt_send++;
+	} else {
+          rx_status.wrong_crc_cnt++;
+	  crc_data |=1 << cpt_data; // starting at 1
+	}
+
       } else {
         memcpy(pkt_fec[cpt_fec].pay, pu8, PKT_DATA);
-        pkt_fec[cpt_fec].crc = (crc_rx==~crc);
 	cpt_fec++;
-	crc_fec |=1 << cpt_fec;
       }
 
-      if (cpt_data == fec_d) {
-        if (!crc_data) {
-
-	} else {
-          for (int i=0;i<fec_d;i++) {
-            write(STDOUT_FILENO,pkt_data[i].pay,pkt_data[i].len);
-            fflush(stdout);
-          }
-	  cpt_data=0;cpt_fec=0;
-	  crc_data=0;crc_fec=0;
-	}
+      if (cpt_fec == fec_k) {
+	cpt_data=0;cpt_fec=0;cpt_send=0;
+	crc_data=0;
       }
     }
   }

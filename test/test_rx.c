@@ -16,7 +16,8 @@ uint32_t crc32_table[256];
 
 /*****************************************************************************/
 void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *pkt) {
-
+  printf("HELLO\n");
+/*
   uint32_t crc;
   uint32_t bytes = (hdr->len);
   uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8)); // variable radiotap header size
@@ -50,6 +51,7 @@ void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *
       }
     }
   }
+*/
 }
 
 /*****************************************************************************/
