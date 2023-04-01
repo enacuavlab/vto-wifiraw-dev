@@ -15,46 +15,6 @@ uint32_t crc32_table[256];
 #define RADIOTAP_DBM_ANTSIGNAL_OFF 22
 
 /*****************************************************************************/
-void captured_packet(u_char *args, const struct pcap_pkthdr *hdr, const u_char *pkt) {
-  printf("HELLO\n");
-/*
-  uint32_t crc;
-  uint32_t bytes = (hdr->len);
-  uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8)); // variable radiotap header size
-  uint32_t dataLen = bytes - u16HeaderLen - sizeof(crc);
-  uint32_t captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(uint32_t); // 4 bytes CRC32
-	
-  rx_status.rcv_pkt_cnt ++;  
-  if (bytes >= captlimit) {
-    rx_status.signal_dbm = pkt[RADIOTAP_DBM_ANTSIGNAL_OFF];
-
-    const uint8_t *s = &pkt[u16HeaderLen]; // compute CRC32 for [sizeof(wifi_hdr) + sizeof(llc_hdr) + data]
-    uint32_t crc=0xFFFFFFFF;
-    for(uint32_t i=0;i<dataLen;i++) {
-      uint8_t ch=s[i];
-      uint32_t t=(ch^crc)&0xFF;
-      crc=(crc>>8)^crc32_table[t];
-    }
-
-    uint32_t crc_rx;                 // retrieve CRC32 from last uint32_t
-    memcpy(&crc_rx, &pkt[bytes - sizeof(crc_rx)], sizeof(crc_rx));
-     
-    if (crc_rx!=~crc)rx_status.wrong_crc_cnt++;
-    else {
-      uint32_t payloadSize = bytes - captlimit;
-      const uint8_t *pu8 = &pkt[captlimit - sizeof(uint32_t)];
-      if (payloadSize > 0) {
-        uint32_t inl;
-        memcpy(&inl,pu8, sizeof(inl));
-	pu8 += sizeof(inl);
-        write(STDOUT_FILENO, pu8, inl);
-      }
-    }
-  }
-*/
-}
-
-/*****************************************************************************/
 void build_crc32_table(void) {
   for(uint32_t i=0;i<256;i++) {
     uint32_t ch=i;
@@ -99,7 +59,57 @@ int main(int argc, char *argv[]) {
   memset(&rx_status,0,sizeof(rx_status));
 
   build_crc32_table();
+  int fd = pcap_get_selectable_fd(ppcap);
 
-  pcap_loop(ppcap, 0, captured_packet, NULL);
-  return 0;
+  for(;;) {
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(fd, &readset);
+    int n = select(fd+1, &readset, NULL, NULL, NULL);
+    if(n == 0) break;
+    if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
+
+      struct pcap_pkthdr *hdr = NULL;
+      uint8_t payloadBuffer[PKT_SIZE];
+      uint8_t *pkt = payloadBuffer;
+    
+      printf("HELLO\n");
+      if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pkt)) {
+    
+        uint32_t crc;
+        uint32_t bytes = (hdr->len);
+        uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8)); // variable radiotap header size
+        uint32_t dataLen = bytes - u16HeaderLen - sizeof(crc);
+        uint32_t captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(uint32_t); // 4 bytes CRC32
+      	
+        rx_status.rcv_pkt_cnt ++;  
+        if (bytes >= captlimit) {
+          rx_status.signal_dbm = pkt[RADIOTAP_DBM_ANTSIGNAL_OFF];
+      
+          const uint8_t *s = &pkt[u16HeaderLen]; // compute CRC32 for [sizeof(wifi_hdr) + sizeof(llc_hdr) + data]
+          uint32_t crc=0xFFFFFFFF;
+          for(uint32_t i=0;i<dataLen;i++) {
+            uint8_t ch=s[i];
+            uint32_t t=(ch^crc)&0xFF;
+            crc=(crc>>8)^crc32_table[t];
+          }
+      
+          uint32_t crc_rx;                 // retrieve CRC32 from last uint32_t
+          memcpy(&crc_rx, &pkt[bytes - sizeof(crc_rx)], sizeof(crc_rx));
+           
+          if (crc_rx!=~crc)rx_status.wrong_crc_cnt++;
+          else {
+            uint32_t payloadSize = bytes - captlimit;
+            const uint8_t *pu8 = &pkt[captlimit - sizeof(uint32_t)];
+            if (payloadSize > 0) {
+              uint32_t inl;
+              memcpy(&inl,pu8, sizeof(inl));
+      	      pu8 += sizeof(inl);
+              write(STDOUT_FILENO, pu8, inl);
+            }
+          }
+	}
+      }
+    }
+  }
 }
