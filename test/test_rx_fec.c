@@ -8,13 +8,6 @@ typedef struct {
 } wifi_adapter_rx_status_t;
 wifi_adapter_rx_status_t rx_status;
 
-
-typedef struct {
-  bool crc;
-  uint16_t len;
-  uint8_t buf[PKT_SIZE];
-} pkt_t;
-
 /*****************************************************************************/
 #define RADIOTAP_DBM_ANTSIGNAL_OFF 22
 
@@ -67,6 +60,9 @@ int main(int argc, char *argv[]) {
 
   int fd = pcap_get_selectable_fd(ppcap);
 
+  struct pcap_pkthdr *hdr = NULL;
+  uint8_t pkt[PKT_SIZE], cpt_d=0;
+  
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
@@ -75,12 +71,8 @@ int main(int argc, char *argv[]) {
     if(n == 0) break;
     if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
   
-      struct pcap_pkthdr *hdr = NULL;
-      uint8_t payloadBuffer[PKT_SIZE];
-      uint8_t *pkt = payloadBuffer;
-  
-      if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pkt)) {
-  
+      if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&(pkt))) {
+ 
         uint32_t crc;
         uint32_t bytes = (hdr->len);
         uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8)); // variable radiotap header size

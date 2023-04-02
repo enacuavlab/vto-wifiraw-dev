@@ -41,12 +41,35 @@ int main(int argc, char *argv[]) {
     pu8 += sizeof(wifi_hdr);
     memcpy(pu8, llc_hdr, sizeof(llc_hdr));
   }
+  pkt_t pkt_k[fec_k];
+  uint8_t buf_k[fec_k][PKT_SIZE];
+  for (uint8_t i=0;i<fec_k;i++) {
+    pkt_k[i].len = (uint32_t)(-(PKT_DATA));
+    pkt_k[i].pdat = (uint8_t *)(&buf_k[i]);
+    pu8 = buf_k[i];
+    memcpy(pu8, radiotap_hdr, sizeof(radiotap_hdr));
+    pu8[2] = (sizeof(radiotap_hdr));
+    pu8 += sizeof(radiotap_hdr);
+    memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
+    pu8[5] = portId;
+    pu8 += sizeof(wifi_hdr);
+    memcpy(pu8, llc_hdr, sizeof(llc_hdr));
+  }
 
-  uint32_t ret;
-  uint8_t di;
-  uint32_t inl = 0;
+
+  uint8_t *enc_in[fec_d]; // pointers to read packets in pkts_data
+  uint8_t *enc_out[fec_k]; // pointers to encode packets in pkts_fec
+  for (int i=0;i<fec_k;i++) enc_out[i] = pkt_k[cpt_d].pdat + headerSize0; 
+  unsigned block_nums[fec_d];
+  for (int i=0;i<fec_d;i++) block_nums[i] = i+fec_k;
+  fec_t* fec_p = fec_new(fec_k,fec_n);
+
+
+  uint8_t di,ki,li;
+  uint32_t inl,ret,len;
   fd_set rfds;
   struct timeval timeout;
+  bool usefec, interl;
 
   for(;;) {
     FD_ZERO(&rfds);
@@ -54,7 +77,7 @@ int main(int argc, char *argv[]) {
     timeout.tv_sec = 1;
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout); 
     if (ret > 0) {
-      if (pkt_d[cpt_d].len == 0) pu8 = pkt_d[cpt_d].pdat + headerSize1;
+      if (pkt_d[cpt_d].len == 0) { pu8 = pkt_d[cpt_d].pdat + headerSize1; enc_in[cpt_d] = pkt_d[cpt_d].pdat + headerSize0; }
       inl = read(STDIN_FILENO, pu8 + pkt_d[cpt_d].len, PKT_DATA - pkt_d[cpt_d].len); // fill pkts with read input
       if (inl < 0) continue;
       pkt_d[cpt_d].len += inl;
@@ -63,13 +86,21 @@ int main(int argc, char *argv[]) {
     }
     if (ret == 0) {
       if (pkt_d[0].len > 0) {
-	di = 0;
-        while (di < fec_d) {
-          pu8 = pkt_d[di].pdat + headerSize0;
-          memcpy(pu8, &(pkt_d[di].len), sizeof(uint32_t)); // copy variable payload length before payload data
-          ret = pcap_inject(ppcap, buf_d[di], PKT_SIZE);
-	  pkt_d[di].len = 0;
-	  di++;
+	if (cpt_d < fec_d) usefec = false;
+	else usefec = true;
+        if (usefec) fec_encode(fec_p, (const uint8_t**)enc_in, enc_out, block_nums, fec_d, PKT_DATA);
+
+	di=0;ki=0;li=0;interl = true;
+        while ((usefec && ((di < fec_d) || (ki < fec_k)))
+          || (!usefec && (li < fec_d))) {                         // send data and fec interleaved, when needed
+	  if (usefec) {	
+	    if ((di < fec_d)&&(interl)) { pu8 = pkt_d[di].pdat ; len = pkt_d[di].len ; pkt_d[di].len = 0; di ++; if(ki<fec_k) interl = !interl; }
+	    else {
+              if (ki < fec_k) { pu8 = pkt_k[ki].pdat ; len = pkt_k[ki].len ; ki ++; if(di<fec_d) interl = !interl; }
+	    }
+	  } else {  pu8 = pkt_d[li].pdat ; len = pkt_d[li].len ; pkt_d[li].len = 0;  li ++; }
+          memcpy(pu8 + headerSize0, &len, sizeof(uint32_t)); // copy variable payload length before payload data
+          ret = pcap_inject(ppcap, pu8, PKT_SIZE);
 	}
         cpt_d=0;
       }
