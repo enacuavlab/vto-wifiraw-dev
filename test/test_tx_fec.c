@@ -1,50 +1,16 @@
 #include "wfb.h"
 
-#define OFFSET_RADIOTAP_HEADER_LENGTH 2
-#define OFFSET_WIFI_PORT 5
+typedef struct {
+  uint32_t len;
+  uint8_t *pdat;
+} pkt_t;
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
   setpriority(PRIO_PROCESS, 0, -10);
 
-  uint8_t u8portId = 5;
-  uint8_t *pu8;
-
-  uint8_t pay_fec[fec_k][PKT_SIZE];   // allocation for ENCODED frames
-  for (int i=0;i<fec_k;i++) {         // build messages for transmission
-    pu8 = pay_fec[i];
-    memcpy(pu8, radiotap_hdr, sizeof(radiotap_hdr));
-    pu8[OFFSET_RADIOTAP_HEADER_LENGTH] = (sizeof(radiotap_hdr));
-    pu8 += sizeof(radiotap_hdr);
-    memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
-    pu8[OFFSET_WIFI_PORT] = u8portId;
-    pu8 += sizeof(wifi_hdr);
-    memcpy(pu8, llc_hdr, sizeof(llc_hdr));
-  }
-  uint16_t len_data[fec_d];          // data payload length without headers
-  uint8_t pay_data[fec_d][PKT_SIZE]; // allocation for ORIGINAL frames
-  for (int i=0;i<fec_d;i++) {        // build messages for transmission
-    pu8 = pay_data[i];
-    memcpy(pu8, radiotap_hdr, sizeof(radiotap_hdr));
-    pu8[OFFSET_RADIOTAP_HEADER_LENGTH] = (sizeof(radiotap_hdr));
-    pu8 += sizeof(radiotap_hdr);
-    memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
-    pu8[OFFSET_WIFI_PORT] = u8portId;
-    pu8 += sizeof(wifi_hdr);
-    memcpy(pu8, llc_hdr, sizeof(llc_hdr));
-    len_data[i] = 0;
-  }
-
   uint16_t headerSize = sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr);
-
-  uint8_t *enc_in[fec_k];  // encode input array of pointers to payloads 
-  uint8_t *enc_out[fec_d]; // encode output array of pointer 
-  for (int i=0;i<fec_d;i++) enc_out[i] = pay_fec[i] + headerSize;
-  unsigned block_nums[fec_d];
-  for (int i=0;i<fec_d;i++) block_nums[i] = i+fec_k;
-  fec_t* fec_p = fec_new(fec_k,fec_n);
-
 
   char errbuf[PCAP_ERRBUF_SIZE];
   pcap_t *ppcap = pcap_create(argv[1], errbuf);
@@ -55,50 +21,62 @@ int main(int argc, char *argv[]) {
   if (pcap_set_immediate_mode(ppcap, 1) != 0) exit(-1);
   if (pcap_activate(ppcap) !=0) exit(-1);
 
+
+  uint32_t ret;
+  uint8_t di;
+  uint32_t inl = 0;
+
   fd_set rfds;
-  bool usefec,interl;
-  uint8_t di,fi,li,curr=0, *pu8_inj;
-  uint16_t ret, inl = 0,u16_len;
-  struct timeval timeout; // timeout is used to send message without waiting to have all frames filled
-                          // In this case FEC is not used
+  struct timeval timeout;
+
+  uint8_t portId = 5;
+
+  uint8_t *pu8;
+  uint8_t cpt=0;
+  pkt_t pkt[fec_d];
+  uint8_t buf[fec_d][PKT_SIZE];
+  for (uint8_t i=0;i<fec_d;i++) {
+    pkt[i].len = 0;
+    pkt[i].pdat = (uint8_t *)(&buf[i]);
+    pu8 = buf[i];
+    memcpy(pu8, radiotap_hdr, sizeof(radiotap_hdr));
+    pu8[2] = (sizeof(radiotap_hdr));
+    pu8 += sizeof(radiotap_hdr);
+    memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
+    pu8[5] = portId;
+    pu8 += sizeof(wifi_hdr);
+    memcpy(pu8, llc_hdr, sizeof(llc_hdr));
+  }
+
+
   for(;;) {
     FD_ZERO(&rfds);
     FD_SET(STDIN_FILENO, &rfds);
     timeout.tv_sec = 1;
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout); 
     if (ret > 0) {
-      
-      if (len_data[curr] == 0) enc_in[curr] = pay_data[curr] + headerSize;     // set pointer to payload 
-      inl=read(STDIN_FILENO, enc_in[curr] + len_data[curr], PKT_DATA - len_data[curr]); // fill pkts with read input
+
+      if (pkt[cpt].len == 0) pu8 = pkt[cpt].pdat + headerSize;
+
+      inl = read(STDIN_FILENO, pu8 + pkt[cpt].len, PKT_DATA - pkt[cpt].len); // fill pkts with read input
       if (inl < 0) continue;
-      len_data[curr] += inl;
-      if (len_data[curr] == PKT_DATA) curr++;  // current packet is full, switch to next packet
-      if (curr == fec_d) ret = 0;              // all pkts are full, continue with send sequence below
-      
+							   
+      pkt[cpt].len += inl;
+      if (pkt[cpt].len == PKT_DATA) cpt++;
+      if (cpt == fec_d) ret=0;
     }
     if (ret == 0) {
-      if ((len_data[0]) > 0) {           // timeout with data available to send, or full pkts to send
-        usefec = false;
-        if ((fec_k) && (curr == fec_d)) usefec=true;   // use fec when all full packet are sent
-        if (usefec) fec_encode(fec_p, (const uint8_t**)enc_in, enc_out, block_nums, fec_d, PKT_DATA);
-        di=0;fi=0;li=0;interl = true;
-        while ((usefec && ((di < fec_d) || (fi < fec_k)))
-          || (!usefec && (li <= curr))) {                         // send data and fec interleaved, when needed
-          if (usefec) {
-            if ((di < fec_d)&&(interl)) { pu8_inj = pay_data[di]; u16_len = len_data[di]; di ++; if(fi<fec_k) interl = !interl; }
-            else {                                                // fec len is negative in the payload for dispatch on receiver
-              if (fi < fec_k) { pu8_inj = pay_fec[fi]; u16_len = (uint16_t)(-PKT_DATA); fi ++; if(di<fec_d) interl = !interl; }
-            }
-          } else { pu8_inj = pay_data[li]; u16_len = len_data[li]; li ++; }
-
-           memcpy(pu8_inj + headerSize, &u16_len, sizeof(u16_len));
-           ret = pcap_inject(ppcap, pu8_inj, PKT_SIZE);
-
-        //   printf("(%d)(%d)\n", ret,u16_len);fflush(stdout);
+      if (pkt[0].len > 0) {
+	di = 0;
+        while (di < fec_d) {
+          pu8 = pkt[di].pdat + headerSize;
+          memcpy(pu8, &(pkt[di].len), sizeof(uint32_t)); // copy variable payload length before payload data
+          ret = pcap_inject(ppcap, buf[di], PKT_SIZE);
+	  pkt[di].len = 0;
+	  di++;
 	}
-	memset(len_data,0,sizeof(len_data));
-        curr = 0;
       }
+      cpt=0;
     }
   }
 }
