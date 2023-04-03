@@ -16,7 +16,7 @@ typedef struct {
 } pkt_t;
 
 /*****************************************************************************/
-#define RADIOTAP_DBM_ANTSIGNAL_OFF 22
+#define RADIOTAP_DBM_ANTSIGNAL_OFFSET 22
 
 uint32_t crc32_table[256];
 /*****************************************************************************/
@@ -70,13 +70,14 @@ int main(int argc, char *argv[]) {
   struct pcap_pkthdr *hdr = NULL;
   pkt_t pkt[fec_n];
   uint8_t cpt_n=0;
-  uint8_t *pu8;
+  uint8_t *pu8,*pu8pay;
 
   uint32_t crc, bytes, dataLen, captlimit, payloadSize, inl;
   uint16_t u16HeaderLen;
+  bool data_valid = true;
   
   uint8_t num_fec[fec_k], cpt_k=0;
-  uint8_t num_data[fec_d], cpt_d=0;
+  uint8_t num_data[fec_d], cpt_d=0, cpt_d_last_ok=0;
 
   for(;;) {
     fd_set readset;
@@ -89,7 +90,9 @@ int main(int argc, char *argv[]) {
       pu8 = (pkt[cpt_n].buf);
 
       if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pu8)) {
- 
+
+        pu8pay = pu8;
+
         bytes = (hdr->len);
         u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
         dataLen = bytes - u16HeaderLen - sizeof(crc);
@@ -107,8 +110,8 @@ int main(int argc, char *argv[]) {
 
             if ((int16_t)inl > 0) { // This is for data frames
 
-	      num_data[cpt_d++] = cpt_n;
-              const uint8_t *s = pu8 + u16HeaderLen; // compute CRC32 for [sizeof(wifi_hdr) + sizeof(llc_hdr) + data]
+	      num_data[cpt_d] = cpt_n;
+	      const uint8_t *s = pu8pay + u16HeaderLen; // compute CRC32 from variable headerlength
               uint32_t crc=0xFFFFFFFF;
               for(uint32_t i=0;i<dataLen;i++) {
                 uint8_t ch=s[i];
@@ -116,25 +119,32 @@ int main(int argc, char *argv[]) {
                 crc=(crc>>8)^crc32_table[t];
               }
               uint32_t crc_rx;                 // retrieve CRC32 from last uint32_t
-              memcpy(&crc_rx, &pu8[bytes - sizeof(crc_rx)], sizeof(crc_rx));
-	      pkt[cpt_n].crc = (crc_rx!=~crc);
+              memcpy(&crc_rx,  (pu8pay + bytes - sizeof(crc_rx)), sizeof(crc_rx));
+//	      pkt[cpt_n].crc = (crc_rx == ~crc); // compare both for validity check
+	      pkt[cpt_n].crc = (crc_rx != ~crc); // DEBUG INJECT FAILURE
 
-              if (crc_rx!=~crc)rx_status.wrong_crc_cnt++;
-              rx_status.signal_dbm = pu8[RADIOTAP_DBM_ANTSIGNAL_OFF];
+	      if (data_valid) {
+                if (pkt[cpt_n].crc) {
+  	  	  cpt_d_last_ok = cpt_d;
+                  rx_status.signal_dbm = pu8pay[RADIOTAP_DBM_ANTSIGNAL_OFFSET];
+                  write(STDOUT_FILENO, pu8, inl);
+  	        } else {
+  	  	  data_valid = false;
+  	          rx_status.wrong_crc_cnt++;
+		}
+  	      }
+	      cpt_d++;
 
-//                write(STDOUT_FILENO, pu8, inl);
- //             printf("write inl=(%d)\n",inl);            
   	    } else {
 //	      printf("Negative (%d)\n",inl);
               num_fec[cpt_k++] = cpt_n;
 	    }
 	  }
         }
-	printf("(%d)(%d)(%d)\n",cpt_n,cpt_k,cpt_d);
 	cpt_n++;
 	if (cpt_d == fec_d) cpt_d=0;
 	if (cpt_k == fec_k) cpt_k=0;
-	if (cpt_n == fec_n) cpt_n=0;
+	if (cpt_n == fec_n) { cpt_n=0; data_valid = true; cpt_d_last_ok = 0; }
       }
     }
   }
