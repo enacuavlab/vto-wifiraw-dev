@@ -70,8 +70,9 @@ int main(int argc, char *argv[]) {
     if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
 
       struct pcap_pkthdr *hdr = NULL;
-      uint8_t payloadBuffer[PKT_SIZE];
-      uint8_t *pkt = payloadBuffer;
+//      uint8_t payloadBuffer[PKT_SIZE];
+//      uint8_t *pkt = payloadBuffer;
+      uint8_t *pkt;
     
       printf("HELLO\n");
       if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pkt)) {
