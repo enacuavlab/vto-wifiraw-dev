@@ -101,6 +101,9 @@ int main(int argc, char *argv[]) {
             memcpy(&inl,pu8, sizeof(inl));
             pu8 += sizeof(inl);
 
+            if (inl > 0) write(STDOUT_FILENO, pu8, inl);
+
+/*
 	    if ((di < fec_d) && (interl)) {
 
 	      if ((int16_t)inl < 0) reset = true;
@@ -128,7 +131,8 @@ int main(int argc, char *argv[]) {
 	        ki++;
 	      }
 	    }
-
+*/
+/*
 	    if (reset) {
 	      di = 0; ki = 0; interl = true; reset = false;
 	    } else {
@@ -152,6 +156,7 @@ int main(int argc, char *argv[]) {
   		}
 	      }
   	    }
+*/
 	  }
         }
       }
