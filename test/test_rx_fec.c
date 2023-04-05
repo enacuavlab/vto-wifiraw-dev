@@ -70,9 +70,9 @@ int main(int argc, char *argv[]) {
 
   struct pcap_pkthdr *hdr = NULL;
 
-  bool interl = true, reset=false; 
+  bool interl = true, reset=false,valid=true; 
   uint8_t *pu8, *pu8pay; 
-  uint8_t di=0, ki=0;
+  uint8_t di=0, ki=0, d_last_ok=0;
   pkt_t pkt_d[fec_d],pkt_k[fec_k];
 
   uint32_t crc, crc_rx,  bytes, dataLen, captlimit, payloadSize, tmp32;
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
             seq_blk_nb = (((pay_hdr_t *)pu8pay)->seq_blk_nb);
             len = (((pay_hdr_t *)pu8pay)->len);
 
-	    if (len != 0x8000) { // this is a dataframe
+	    if (len != 0x8000) { // this is a data frame
 	  
 	      if (interl) {
 
@@ -123,22 +123,29 @@ int main(int argc, char *argv[]) {
                   }
   		  memcpy(&crc_rx,  (pu8 + bytes - sizeof(crc_rx)), sizeof(crc_rx)); // retrieve CRC32 from reveived data
     	          pkt_d[di].crc = (crc_rx == ~crc); // compare both for validity check
-                  interl = !interl;
+
+		  if (pkt_d[di].crc) {
+                    rx_status.signal_dbm = pu8[RADIOTAP_DBM_ANTSIGNAL_OFFSET];
+		    d_last_ok = di;
+                    write(STDOUT_FILENO, pu8pay, len);
+		  } else {
+	            valid=false;
+		    rx_status.wrong_crc_cnt++;
+		  }
+		  interl = !interl;
   		  di++;
-  
-  		  printf("(%d)(%d)\n",crc_rx,~crc);
 
 		} else reset = true;
 	      } else reset=true;
 
-	    } else {  // This is a FEC
+	    } else {  // This is a FEC frame
 
 	      if (!interl) {
 
 	        if (ki < fec_k) {
 
     	          pkt_k[ki].len = PKT_DATA;
-//  	          memcpy(pkt_k[ki].buf, pu8pay, len);
+  	          memcpy(pkt_k[ki].buf, pu8pay, pkt_k[ki].len);
 		  interl = !interl;
 		  ki++;
 
@@ -148,30 +155,14 @@ int main(int argc, char *argv[]) {
 	  }
 	}
       }
-      if (reset) { di = 0; ki = 0; reset=false; }
+      if (reset) { di = 0; d_last_ok = 0; ki = 0; reset=false; }
     }
   }
 }
 /*
-	    } else {
-  	      if (di > (d_last_ok - 1)) {
-  	        if (d_valid) {
-                  if (pkt_d[di].crc) {
-    	  	    d_last_ok = di;
-                    rx_status.signal_dbm = pu8pay[RADIOTAP_DBM_ANTSIGNAL_OFFSET];
-                    write(STDOUT_FILENO, pu8, inl);
-    	        } else {
-    	  	  d_valid = false;
-    	          rx_status.wrong_crc_cnt++;
-  		}
-  	      } else {
-                  if ((di == fec_d) && (ki == fec_k)) {
-                    for (int i = (d_last_ok + 1) ; i<fec_d; i++) {
-                      write(STDOUT_FILENO, (pkt_d[i].buf) + sizeof(uint32_t), pkt_d[i].len);
-                    }
-		    di = 0; ki = 0; d_last_ok = 0, d_valid = true; interl = true;
-		  }
-  		}
-	      }
-  	    }
+      else if ((di == fec_d) && (ki == fec_k)) {
+        for (int i=0; i < fec_d; i++) write(STDOUT_FILENO, (pkt_d[i].buf), pkt_d[i].len);
+	di = 0; ki = 0; 
+      }
+    }
 */
