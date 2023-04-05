@@ -70,18 +70,15 @@ int main(int argc, char *argv[]) {
     if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
 
       struct pcap_pkthdr *hdr = NULL;
-//      uint8_t payloadBuffer[PKT_SIZE];
-//      uint8_t *pkt = payloadBuffer;
       uint8_t *pkt;
     
-      printf("HELLO\n");
       if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pkt)) {
     
         uint32_t crc;
         uint32_t bytes = (hdr->len);
         uint16_t u16HeaderLen = (pkt[2] + (pkt[3] << 8)); // variable radiotap header size
         uint32_t dataLen = bytes - u16HeaderLen - sizeof(crc);
-        uint32_t captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(uint32_t); // 4 bytes CRC32
+        uint32_t captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(pay_hdr_t); // 4 bytes CRC32
       	
         rx_status.rcv_pkt_cnt ++;  
         if (bytes >= captlimit) {
@@ -101,12 +98,12 @@ int main(int argc, char *argv[]) {
           if (crc_rx!=~crc)rx_status.wrong_crc_cnt++;
           else {
             uint32_t payloadSize = bytes - captlimit;
-            const uint8_t *pu8 = &pkt[captlimit - sizeof(uint32_t)];
+            const uint8_t *pu8 = &pkt[captlimit - sizeof(pay_hdr_t)];
             if (payloadSize > 0) {
-              uint32_t inl;
-              memcpy(&inl,pu8, sizeof(inl));
-      	      pu8 += sizeof(inl);
-              write(STDOUT_FILENO, pu8, inl);
+              uint16_t seq_blk_nb = (((pay_hdr_t *)pu8)->seq_blk_nb);
+              uint16_t len = (((pay_hdr_t *)pu8)->len);
+      	      pu8 += sizeof(pay_hdr_t);
+              write(STDOUT_FILENO, pu8, len);
             }
           }
 	}

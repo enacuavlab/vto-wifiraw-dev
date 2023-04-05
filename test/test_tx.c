@@ -32,10 +32,9 @@ int main(int argc, char *argv[]) {
   if (pcap_activate(ppcap) !=0) exit(-1);
 
   uint8_t *pu8_payload_head = pu8;
-  pu8 += sizeof(uint32_t);
+  pu8 += sizeof(pay_hdr_t);
 
-  uint16_t ret;
-  uint32_t inl = 0;
+  uint16_t inl, ret, seq_blk_nb = 0;
 
   fd_set rfds;
   struct timeval timeout;
@@ -50,9 +49,11 @@ int main(int argc, char *argv[]) {
       inl=read(STDIN_FILENO, pu8, PKT_DATA);   // fill pkts with read input
       if (inl < 0) continue;
 
-      memcpy(pu8_payload_head,&inl,sizeof(inl)); // copy variable payload length before payload data
+      (((pay_hdr_t *)pu8_payload_head)->seq_blk_nb) = seq_blk_nb;
+      (((pay_hdr_t *)pu8_payload_head)->len) = inl;
 
       ret = pcap_inject(ppcap, buf, PKT_SIZE);
+      seq_blk_nb++;
     }
   }
 }

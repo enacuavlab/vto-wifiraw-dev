@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   uint16_t headerSize0 = sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr);
-  uint16_t headerSize1 = headerSize0 + sizeof(uint32_t);
+  uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);
 
   char errbuf[PCAP_ERRBUF_SIZE];
   pcap_t *ppcap = pcap_create(argv[1], errbuf);
@@ -34,26 +34,29 @@ int main(int argc, char *argv[]) {
     pu8 += sizeof(wifi_hdr);
     memcpy(pu8, llc_hdr, sizeof(llc_hdr));
   }
+  uint8_t buf_k[fec_k][PKT_SIZE]; 
+  for (uint8_t i=0;i<fec_k;i++) {
+    pu8 = buf_k[i];
+    memcpy(pu8, radiotap_hdr, sizeof(radiotap_hdr));
+    pu8[2] = (sizeof(radiotap_hdr));
+    pu8 += sizeof(radiotap_hdr);
+    memcpy(pu8, wifi_hdr, sizeof(wifi_hdr));
+    pu8[5] = portId;
+    pu8 += sizeof(wifi_hdr);
+    memcpy(pu8, llc_hdr, sizeof(llc_hdr));
+  }
 
-/*
-  uint8_t *enc_in[fec_d]; // pointers to read packets in pkts_data
-  uint8_t *enc_out[fec_k]; // pointers to encode packets in pkts_fec
-  for (int i=0;i<fec_k;i++) enc_out[i] = pkt_k[cpt_d].pdat + headerSize0; 
+  uint8_t *enc_in[fec_d]; // pointers to read packets to input encode
+  for (int i=0;i<fec_d;i++) enc_in[i] = &(buf_d[i][headerSize0]); 
+  uint8_t *enc_out[fec_k]; // pointers to output encode
+  for (int i=0;i<fec_k;i++) enc_out[i] = &(buf_k[i][headerSize0]);  // excluding transmission headers
   unsigned block_nums[fec_d];
   for (int i=0;i<fec_d;i++) block_nums[i] = i+fec_k;
-  fec_t* fec_p = fec_new(fec_k,fec_n);
-*/
-/*
-  uint8_t di,ki,li;
-  uint16_t ret;
-  uint32_t inl,offset;
-  fd_set rfds;
-  struct timeval timeout;
-  bool usefec, interl;
-*/
+  fec_t* fec_p = fec_new(fec_k,fec_n); // fec_k = number of encoded frames, fec_n = total frames
 
+  bool usefec, interl=true;
   uint8_t di,ki,li;
-  uint16_t offset,ret;
+  uint16_t len, offset,ret,seq_blk_nb=0;
   uint32_t inl = 0;
   fd_set rfds;
   struct timeval timeout;
@@ -74,29 +77,6 @@ int main(int argc, char *argv[]) {
     }
     if (ret == 0) {
       if (len_d[0] > 0) {
-	di = 0;
-	while (di < fec_d) { // headerSize0 = sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr)
-          memcpy(&(buf_d[di][headerSize0]), &len_d[di], sizeof(uint32_t)); // copy variable payload length before payload data
-          ret = pcap_inject(ppcap, buf_d[di], PKT_SIZE);
-          len_d[di] = 0;
-	  di++;
-	}
-	cpt_d = 0;
-      }
-    }
-  }
-}
-
-/*
-      if (pkt_d[cpt_d].len == 0) { pu8 = pkt_d[cpt_d].pdat + headerSize1; enc_in[cpt_d] = pkt_d[cpt_d].pdat + headerSize0; }
-      inl = read(STDIN_FILENO, pu8 + pkt_d[cpt_d].len, PKT_DATA - pkt_d[cpt_d].len); // fill pkts with read input
-      if (inl < 0) continue;
-      pkt_d[cpt_d].len += inl;
-      if (pkt_d[cpt_d].len == PKT_DATA) cpt_d++;
-      if (cpt_d == fec_d) ret=0;
-    }
-    if (ret == 0) {
-      if (pkt_d[0].len > 0) {
 	if (cpt_d < fec_d) usefec = false;
 	else usefec = true;
         if (usefec) fec_encode(fec_p, (const uint8_t**)enc_in, enc_out, block_nums, fec_d, PKT_DATA);
@@ -105,16 +85,21 @@ int main(int argc, char *argv[]) {
         while ((usefec && ((di < fec_d) || (ki < fec_k)))
           || (!usefec && (li < fec_d))) {                         // send data and fec interleaved, when needed
 	  if (usefec) {	
-	    if ((di < fec_d)&&(interl)) { pu8 = pkt_d[di].pdat ; len = pkt_d[di].len ; pkt_d[di].len = 0; di ++; if(ki<fec_k) interl = !interl; }
+	    if ((di < fec_d)&&(interl)) { pu8 = buf_d[di]; len = len_d[di] ; len_d[di] = 0; di ++; if(ki<fec_k) interl = !interl; }
 	    else {
-              if (ki < fec_k) { pu8 = pkt_k[ki].pdat ; len = pkt_k[ki].len ; ki ++; if(di<fec_d) interl = !interl; }
+              if (ki < fec_k) { pu8 = buf_k[ki] ; len = (0x8000) ; ki ++; if(di<fec_d) interl = !interl; }  // set len to negative (higher bit) for dispatch on receiver
 	    }
-	  } else {  pu8 = pkt_d[li].pdat ; len = pkt_d[li].len ; pkt_d[li].len = 0;  li ++; }
-          memcpy(pu8 + headerSize0, &len, sizeof(uint32_t)); // copy variable payload length before payload data
-	
-	  printf("(%d)(%d)(%d)\n",di,ki,len);
-          ret = pcap_inject(ppcap, pu8, PKT_SIZE);
+	  } else {  pu8 = buf_d[li] ; len = len_d[li] ; len_d[li] = 0;  li ++; }
+          
+	    (((pay_hdr_t *)(&(pu8[headerSize0])))->seq_blk_nb) = seq_blk_nb;
+            (((pay_hdr_t *)(&(pu8[headerSize0])))->len) = len;
+
+            ret = pcap_inject(ppcap, pu8, PKT_SIZE);
 	}
-        cpt_d=0;
+	cpt_d = 0;
+	if (seq_blk_nb == 65535)  seq_blk_nb = 0;
+	else seq_blk_nb++;
       }
-*/
+    }
+  }
+}

@@ -11,7 +11,8 @@ wifi_adapter_rx_status_t rx_status;
 
 typedef struct {
   bool crc;
-  uint32_t len;          // payload length
+  uint16_t seq_blk_nb;
+  uint16_t len;
   uint8_t buf[PKT_DATA]; // payload data         
 } pkt_t;
 
@@ -68,13 +69,14 @@ int main(int argc, char *argv[]) {
   int fd = pcap_get_selectable_fd(ppcap);
 
   struct pcap_pkthdr *hdr = NULL;
-  pkt_t pkt_d[fec_d],pkt_k[fec_k];
-  uint8_t di=0, ki=0, d_last_ok=0;
-  uint8_t *pu8,*pu8pay;
 
-  uint32_t crc, crc_rx,  bytes, dataLen, captlimit, payloadSize, inl;
-  uint16_t u16HeaderLen;
-  bool interl=true,reset=false, d_valid = true;
+  bool interl = true, reset=false; 
+  uint8_t *pu8, *pu8pay; 
+  uint8_t di=0, ki=0;
+  pkt_t pkt_d[fec_d],pkt_k[fec_k];
+
+  uint32_t crc, crc_rx,  bytes, dataLen, captlimit, payloadSize, tmp32;
+  uint16_t u16HeaderLen, seq_blk_nb, len;
  
   for(;;) {
     fd_set readset;
@@ -84,12 +86,14 @@ int main(int argc, char *argv[]) {
     if(n == 0) break;
     if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
 
-      if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&(pu8))) {  // pcap_next_ex() makes its memory allocation 
-        pu8pay = pu8;						     // we must copy this memmory before make the next call
+      if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)(&pu8))) { // pcap_next_ex() makes its memory allocation 
+          						            // we must copy this memmory before make the next call
+	pu8pay = pu8;
+
         bytes = (hdr->len);
         u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
         dataLen = bytes - u16HeaderLen - sizeof(crc);
-        captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(uint32_t); // 4 bytes CRC32
+        captlimit = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr) + sizeof(pay_hdr_t); // 4 bytes CRC32
   
         rx_status.rcv_pkt_cnt ++;
         if (bytes >= captlimit) {
@@ -97,44 +101,58 @@ int main(int argc, char *argv[]) {
           payloadSize = bytes - captlimit;
           if (payloadSize > 0) {
 
-            pu8 = pu8 + captlimit - sizeof(uint32_t);
-            memcpy(&inl,pu8, sizeof(inl));
-            pu8 += sizeof(inl);
+            pu8pay = pu8 + captlimit - sizeof(pay_hdr_t);
+            seq_blk_nb = (((pay_hdr_t *)pu8pay)->seq_blk_nb);
+            len = (((pay_hdr_t *)pu8pay)->len);
 
-            if (inl > 0) write(STDOUT_FILENO, pu8, inl);
+	    if (len != 0x8000) { // this is a dataframe
+	  
+	      if (interl) {
 
-/*
-	    if ((di < fec_d) && (interl)) {
+	        if (di < fec_d) {
 
-	      if ((int16_t)inl < 0) reset = true;
-	      else {
-  	        pkt_d[di].len = inl;
-	        memcpy(pkt_d[di].buf, pu8, inl);
-  	        const uint8_t *s = pu8pay + u16HeaderLen; // compute CRC32 from variable headerlength
-                uint32_t crc=0xFFFFFFFF;
-                for(uint32_t i=0;i<dataLen;i++) {
-                  uint8_t ch=s[i];
-                  uint32_t t=(ch^crc)&0xFF;
-                  crc=(crc>>8)^crc32_table[t];
-                }
-                memcpy(&crc_rx,  (pu8pay + bytes - sizeof(crc_rx)), sizeof(crc_rx)); // retrieve CRC32 from reveived data
-  	        pkt_d[di].crc = (crc_rx == ~crc); // compare both for validity check
-                interl = !interl;
-		di++;
-	      } 
-	    } else if (ki < fec_k) {
-	      if ((int16_t)inl > 0) reset = true;
-	      else {
-                pkt_k[ki].len = -inl;
-	        memcpy(pkt_k[ki].buf, pu8, -inl); 
-	        interl = !interl;
-	        ki++;
-	      }
+    	          pkt_d[di].len = len;
+  	          memcpy(&(pkt_d[di].buf), pu8pay, len);
+  
+    	          const uint8_t *s = &pu8[u16HeaderLen]; // compute CRC32 from variable headerlength
+                  uint32_t crc=0xFFFFFFFF;
+                  for(uint32_t i=0;i<dataLen;i++) {
+                    uint8_t ch=s[i];
+                    uint32_t t=(ch^crc)&0xFF;
+                    crc=(crc>>8)^crc32_table[t];
+                  }
+  		  memcpy(&crc_rx,  (pu8 + bytes - sizeof(crc_rx)), sizeof(crc_rx)); // retrieve CRC32 from reveived data
+    	          pkt_d[di].crc = (crc_rx == ~crc); // compare both for validity check
+                  interl = !interl;
+  		  di++;
+  
+  		  printf("(%d)(%d)\n",crc_rx,~crc);
+
+		} else reset = true;
+	      } else reset=true;
+
+	    } else {  // This is a FEC
+
+	      if (!interl) {
+
+	        if (ki < fec_k) {
+
+    	          pkt_k[ki].len = PKT_DATA;
+//  	          memcpy(pkt_k[ki].buf, pu8pay, len);
+		  interl = !interl;
+		  ki++;
+
+		} else reset = true;
+	      } else reset = true;
 	    }
-*/
+	  }
+	}
+      }
+      if (reset) { di = 0; ki = 0; reset=false; }
+    }
+  }
+}
 /*
-	    if (reset) {
-	      di = 0; ki = 0; interl = true; reset = false;
 	    } else {
   	      if (di > (d_last_ok - 1)) {
   	        if (d_valid) {
@@ -157,9 +175,3 @@ int main(int argc, char *argv[]) {
 	      }
   	    }
 */
-	  }
-        }
-      }
-    }
-  }
-}
