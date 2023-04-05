@@ -52,8 +52,8 @@ int main(int argc, char *argv[]) {
   bool usefec, interl;
 */
 
-  uint8_t ret,di,ki,li;
-  uint16_t offset;
+  uint8_t di,ki,li;
+  uint16_t offset,ret;
   uint32_t inl = 0;
   fd_set rfds;
   struct timeval timeout;
@@ -63,19 +63,19 @@ int main(int argc, char *argv[]) {
     FD_SET(STDIN_FILENO, &rfds);
     timeout.tv_sec = 1;
     ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
-    if (ret > 0) {
+    if (ret > 0) {            // headerSize1 = headerSize0 + sizeof(uint32_t)
       if (len_d[cpt_d] == 0) offset = headerSize1;
-      else offset += len_d[cpt_d];
       inl = read(STDIN_FILENO, &(buf_d[cpt_d][offset]), PKT_DATA - len_d[cpt_d] );   // fill pkts with read input
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
+      offset += inl;
       if (len_d[cpt_d] == PKT_DATA) cpt_d++;
       if (cpt_d == fec_d) ret=0;
     }
     if (ret == 0) {
       if (len_d[0] > 0) {
 	di = 0;
-	while (di < fec_d) {
+	while (di < fec_d) { // headerSize0 = sizeof(radiotap_hdr) + sizeof(wifi_hdr) + sizeof(llc_hdr)
           memcpy(&(buf_d[di][headerSize0]), &len_d[di], sizeof(uint32_t)); // copy variable payload length before payload data
           ret = pcap_inject(ppcap, buf_d[di], PKT_SIZE);
           len_d[di] = 0;
@@ -87,38 +87,6 @@ int main(int argc, char *argv[]) {
   }
 }
 
-/*
-//      if (len_d[cpt_d] == 0) offset = headerSize1;
-//      else offset += len_d[cpt_d];
-
-//      pu8 = &(buf_d[0][headerSize1 - 1]);
-//      if (inl < 0) continue;
-//      pu8 = &(buf_d[0][headerSize0 - 1]);
-
-//      inl = read(STDIN_FILENO, &buf_d[cpt_d][offset - 1] , PKT_DATA - len_d[cpt_d]);   // fill pkts with read input
-//      if (inl < 0) continue;
-//      len_d[cpt_d] += inl;
-//      if (len_d[cpt_d] == PKT_DATA) cpt_d++;
-//      if (cpt_d == fec_d) ret=0;
-//      ret = 0;
-    }
-  }
-}
-    if (ret == 0) {
-      if (len_d[0] > 0) {
-	di = 0;
-	while (di < fec_d) {
-          memcpy(&(buf_d[di][headerSize0 - 1]), &len_d[di], sizeof(uint32_t)); // copy variable payload length before payload data
-          ret = pcap_inject(ppcap, buf_d[di], PKT_SIZE);
-          len_d[di] = 0;
-          di++;
-	}
-	cpt_d = 0;
-      }
-    }
-  }
-}
-*/
 /*
       if (pkt_d[cpt_d].len == 0) { pu8 = pkt_d[cpt_d].pdat + headerSize1; enc_in[cpt_d] = pkt_d[cpt_d].pdat + headerSize0; }
       inl = read(STDIN_FILENO, pu8 + pkt_d[cpt_d].len, PKT_DATA - pkt_d[cpt_d].len); // fill pkts with read input

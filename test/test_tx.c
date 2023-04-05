@@ -34,7 +34,7 @@ int main(int argc, char *argv[]) {
   uint8_t *pu8_payload_head = pu8;
   pu8 += sizeof(uint32_t);
 
-  uint8_t ret;
+  uint16_t ret;
   uint32_t inl = 0;
 
   fd_set rfds;
