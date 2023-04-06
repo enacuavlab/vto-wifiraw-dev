@@ -48,17 +48,23 @@ int main(int argc, char *argv[]) {
 
   for(;;) {
     fd_set readset;
+/*
     struct timeval to;
     to.tv_sec = 0;
     to.tv_usec = 1e5;
-	
+*/	
+
     FD_ZERO(&readset);
     FD_SET(selectable_fd, &readset);
 
-    int n = select(selectable_fd + 1, &readset, NULL, NULL, &to);
+//    int n = select(selectable_fd + 1, &readset, NULL, NULL, &to);
+    int n = select(selectable_fd + 1, &readset, NULL, NULL, NULL);
 
-    if(n == 0) break;
+//    if(n == 0) break;
     if(FD_ISSET(selectable_fd, &readset)) {
+
+      printf("HELLO (%d)\n",n);
+
       retval = pcap_next_ex(ppcap, &ppcapPacketHeader, (const u_char**)&pu8Payload); 
       if (retval == 1) {
         u16HeaderLen = (pu8Payload[2] + (pu8Payload[3] << 8));

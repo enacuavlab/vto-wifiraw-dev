@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
   u8aRadiotapHeader[8]=0x48;
   memcpy(pu8, u8aRadiotapHeader, sizeof(u8aRadiotapHeader));
   pu8 += sizeof(u8aRadiotapHeader);
-  u8aIeeeHeader_data[5] = port;
+//  u8aIeeeHeader_data[5] = port;
   memcpy(pu8, u8aIeeeHeader_data, sizeof (u8aIeeeHeader_data));
   pu8 += sizeof (u8aIeeeHeader_data);
 
@@ -102,11 +102,13 @@ int main(int argc, char *argv[]) {
       else {
 	di = 0;
         while(di < 4) {
-          wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_len);
-          wph->sequence_number = seq_nr;
-          memcpy(packet_transmit_buffer + packet_header_len + sizeof(wifi_packet_header_t), &(buf[di]), 1024);
-      	  int plen = len[di] + packet_header_len + sizeof(wifi_packet_header_t);
-          int r = pcap_inject(ppcap, packet_transmit_buffer, plen);
+//          wifi_packet_header_t *wph = (wifi_packet_header_t*)(packet_transmit_buffer + packet_header_len);
+//          wph->sequence_number = seq_nr;
+//          memcpy(packet_transmit_buffer + packet_header_len + sizeof(wifi_packet_header_t), &(buf[di]), 1024);
+//      	  int plen = len[di] + packet_header_len + sizeof(wifi_packet_header_t);
+//          int r = pcap_inject(ppcap, packet_transmit_buffer, plen);
+          int r = pcap_inject(ppcap, packet_transmit_buffer, sizeof(u8aRadiotapHeader) + sizeof(u8aIeeeHeader_data) + sizeof(uint32_t));
+	  printf("(%d)\n",r);
           di++;
         }
 	seq_nr++;
