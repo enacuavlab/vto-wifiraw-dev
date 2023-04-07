@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -I../zfec/zfec -g
 LDFLAGS=-lpcap 
 
-all: test_tx_fast test_rx_fast  test_rx test_tx # test_tx_fec test_rx_fec  test_tx test_rx #test_crc32 test_zfec_00 test_zfec_01 test_zfec_02 packetspammer
+all: test_inject test_capt  #test_tx_fast test_rx_fast  test_rx test_tx # test_tx_fec test_rx_fec  test_tx test_rx #test_crc32 test_zfec_00 test_zfec_01 test_zfec_02 packetspammer
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
@@ -13,6 +13,12 @@ test_tx_fec: test_tx_fec.o ../zfec/zfec/fec.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 test_rx_fec: test_rx_fec.o ../zfec/zfec/fec.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+test_inject: test_inject.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+test_capt: test_capt.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 test_tx_fast: test_tx_fast.o
@@ -43,4 +49,4 @@ packetspammer: packetspammer.o
 	gcc -o $@ $^ $(LDFLAGS)
 
 clean:
-	rm -f test_tx_fast test_rx_fast test_tx_fec test_rx_fec test_tx test_rx test_zfec_00 test_zfec_01 test_zfec_02 test_crc32 packetspammer  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	rm -f test_inject test_capt test_tx_fast test_rx_fast test_tx_fec test_rx_fec test_tx test_rx test_zfec_00 test_zfec_01 test_zfec_02 test_crc32 packetspammer  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o

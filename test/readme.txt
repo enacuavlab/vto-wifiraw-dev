@@ -8,11 +8,28 @@ gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay ! 
 
 
 -------------------------------------------------------------------------------
+openssl rand 102400 > /tmp/100K.log
+
+cat /tmp/100K.log | sudo ./test_inject $node 
+total cpt(72) in(102400) out(107512)
+
+sudo ./test_capt $node
+...
+total nb(72) in(108304) out(102400)
+
+--------------------------------------
+openssl rand 204800 > /tmp/200K.log
+
+cat /tmp/200K.log | sudo ./test_inject $node
+total cpt(143) in(204800) out(214953)
+
+sudo ./test_capt $node
+...
+total nb(132) in(199795) out(188971) ?!
 
 
 
-
-
+-------------------------------------------------------------------------------
 
 
 
