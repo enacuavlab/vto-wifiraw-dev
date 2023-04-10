@@ -5,16 +5,34 @@
 #include <sys/resource.h>
 #include <unistd.h>
 
+//#define LEGACY
+#ifdef LEGACY
+
 static const uint8_t radiotap_hdr[] = {
 	0x00, 0x00, // <-- radiotap version + pad byte
 	0x0b, 0x00, // <- radiotap header length
 	0x04, 0x0c, 0x00, 0x00, // <-- bitmap
-	0x60, // <-- rate (in 500kHz units)
+	0x48, // <-- 0x60 rate (in 500kHz units)
 	0x0c, //<-- tx power
 	0x01 //<-- antenna
 };
 
-/*
+static const char wifi_hdr[] = {
+  0x88, 0x00, 0x30, 0x00,             // frame type to match on receiver
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // port to be set and to match on receiver
+  0x23, 0x23, 0x23, 0x23, 0x23, 0x23,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xc0, 0x20, 0x20, 0x00
+};
+
+static const uint8_t llc_hdr[] = {
+  0xaa, 0xaa, 0x03,
+  0x00, 0x00, 0x00,
+  0x88, 0xb5
+};
+
+#else
+
 #define IEEE80211_RADIOTAP_MCS_HAVE_BW    0x01
 #define IEEE80211_RADIOTAP_MCS_HAVE_MCS   0x02
 #define IEEE80211_RADIOTAP_MCS_HAVE_GI    0x04
@@ -42,11 +60,10 @@ static const uint8_t radiotap_hdr[] = {
 //#define MCS_FLAGS  (IEEE80211_RADIOTAP_MCS_BW_20 | (IEEE80211_RADIOTAP_MCS_STBC_1 << IEEE80211_RADIOTAP_MCS_STBC_SHIFT))
 
 // for MCS#1 -- QPSK 1/2 20MHz long GI without STBC
-//#define MCS_FLAGS  (IEEE80211_RADIOTAP_MCS_BW_20)
+#define MCS_FLAGS  (IEEE80211_RADIOTAP_MCS_BW_20)
 
 // for stbc + ldpc: https://en.wikipedia.org/wiki/Space%E2%80%93time_block_code
-#define MCS_FLAGS  (IEEE80211_RADIOTAP_MCS_BW_20 | (IEEE80211_RADIOTAP_MCS_STBC_1 << IEEE80211_RADIOTAP_MCS_STBC_SHIFT) | IEEE80211_RADIOTAP_MCS_FEC_LDPC)
-
+//#define MCS_FLAGS  (IEEE80211_RADIOTAP_MCS_BW_20 | (IEEE80211_RADIOTAP_MCS_STBC_1 << IEEE80211_RADIOTAP_MCS_STBC_SHIFT) | IEEE80211_RADIOTAP_MCS_FEC_LDPC)
 #define MCS_INDEX  1
 
 static uint8_t radiotap_hdr[]  __attribute__((unused)) = {
@@ -57,22 +74,8 @@ static uint8_t radiotap_hdr[]  __attribute__((unused)) = {
     MCS_KNOWN , MCS_FLAGS, MCS_INDEX // bitmap, flags, mcs_index
 };
 
+#endif /* LEGACY */
 
-*/
-
-static const char wifi_hdr[] = {
-  0x88, 0x00, 0x30, 0x00,             // frame type to match on receiver
-  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // port to be set and to match on receiver
-  0x23, 0x23, 0x23, 0x23, 0x23, 0x23,
-  0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-  0xc0, 0x20, 0x20, 0x00
-};
-
-static const uint8_t llc_hdr[] = {
-  0xaa, 0xaa, 0x03,
-  0x00, 0x00, 0x00,
-  0x88, 0xb5
-};
 
 typedef struct {
   uint16_t seq_blk_nb;
@@ -118,7 +121,9 @@ int main(int argc, char *argv[]) {
 
   uint16_t inl, len, ret, seq = 0;
 
-  struct timespec start;
+  struct timespec start,slp;
+  slp.tv_sec = 0;
+  slp.tv_nsec = 10 * 1000000; // 1 000 000 nano = 1 milli
   uint64_t start_n ;
 
   uint32_t total_in = 0, total_out=0, total_cpt=0;
@@ -137,7 +142,14 @@ int main(int argc, char *argv[]) {
       inl = read(STDIN_FILENO, pu8, PKT_PAY);   // fill pkts with read input
       if (inl < 0) continue;
       if (inl == 0) {printf("total cpt(%d) in(%d) out(%d)\n",total_cpt,total_in,total_out);exit(0);}
+/*
+  for (int cpt=0;cpt<600;cpt++) {
+      inl = PKT_PAY;
+      pu8 = pu8_payload_head + sizeof(pay_hdr_t);
+*/
       total_in += inl;
+
+      nanosleep(&slp,&slp);
 
       clock_gettime( CLOCK_MONOTONIC, &start);
       start_n = (start.tv_nsec + (start.tv_sec * 1000000000L));
@@ -150,8 +162,13 @@ int main(int argc, char *argv[]) {
 
       len = inl + headerSize;
       ret = pcap_inject(ppcap, buf, len);
+      if (ret == -1) {
+	printf("(%s)\n",pcap_geterr(ppcap));
+        exit(-1);
+      }
       total_out += ret;
       total_cpt ++;
     }
   }
+//  printf("total cpt(%d) in(%d) out(%d)\n",total_cpt,total_in,total_out);
 }
