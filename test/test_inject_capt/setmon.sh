@@ -1,5 +1,7 @@
-#declare -a usbwifidongles=(wlx7c10c91c408e wlxfc34972ed57c)
-declare -a usbwifidongles=(wlxfc349725a319 wlxfc349725a317)
+sudo systemctl stop  NetworkManager 
+
+declare -a usbwifidongles=(wlx7c10c91c408e wlxfc34972ed57c)
+#declare -a usbwifidongles=(wlxfc349725a319 wlxfc349725a317)
 
 for dongle in "${usbwifidongles[@]}"
 do 

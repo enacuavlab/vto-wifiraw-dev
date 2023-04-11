@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 /*****************************************************************************/
 typedef struct {

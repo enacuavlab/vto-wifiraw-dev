@@ -5,6 +5,8 @@ sudo ./test_capt_once $node
 
 sudo ./test_inject_once $node
 
+=> latency in milliseconds (ex. 2 to 3 ms)
+
 
 OK for legacy bitrate setting 0x48 or 0x60
 
