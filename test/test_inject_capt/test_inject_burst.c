@@ -38,13 +38,12 @@ int main(int argc, char *argv[]) {
   uint16_t data_len, trans_len, ret, seq = 0;
   struct timespec stp, wait_n;
   wait_n.tv_sec=0;
-  wait_n.tv_nsec=1000000; 
-//  wait_n.tv_nsec=1000000; // OK
+  wait_n.tv_nsec=1000000; // OK
 
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
-  for (int i=0;i<1000;i++) {
+  for (int i=0;i<820;i++) {
 
     nanosleep(&wait_n,&wait_n); 
     (((pay_hdr_t *)pu8)->seq) = seq;
@@ -56,6 +55,10 @@ int main(int argc, char *argv[]) {
     (((pay_hdr_t *)pu8)->stp_n) = stp_n;
   
     ret = pcap_inject(ppcap, buf, trans_len);
+    if (ret <= 0) {
+      printf("pcap_inject failure (%s)\n",pcap_geterr(ppcap));
+      exit(-1);
+    }
     printf("(%d)(%d)(%d)\n",seq,trans_len,ret);
     printf("(%ld)\n",stp_n);
     printf("-----------------------------\n");

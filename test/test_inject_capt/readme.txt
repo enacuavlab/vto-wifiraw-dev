@@ -1,3 +1,21 @@
+No options on modprobe
+Channel 140
+#ifdef LEGACY
+0x48
+sudo ./test_capt_burst $node
+sudo ./test_inject_burst $node
+
+800 x 2311 (2248)
+wait_n.tv_nsec=1000000
+=> 1.8 Mbs
+
+
+
+
+
+
+-------------------------------------------------------------
+
 Channel 140
 ----------
 
