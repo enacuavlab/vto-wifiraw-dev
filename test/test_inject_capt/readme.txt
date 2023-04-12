@@ -23,7 +23,12 @@ options 88XXau rtw_monitor_disable_1m=1
 "
 Led blinking on startup means that rtw_monitor_disable_1m is set
 
-sudo sysctl -w net.core.wmem_max=2621440
+? 
+sudo sysctl -w net.core.rmem_max=33554432
+sudo sysctl -w net.core.wmem_max=33554432
+sudo sysctl -w net.core.rmem_default=33554432
+sudo sysctl -w net.core.wmem_default=33554432
+?
 
 -------------------------------------------------------------
 
