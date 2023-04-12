@@ -37,9 +37,9 @@ int main(int argc, char *argv[]) {
   uint64_t stp_n;
   uint16_t data_len, trans_len, ret, seq = 0;
   struct timespec stp, wait_n;
-  wait_n.tv_sec=0;
-  wait_n.tv_nsec=100000; // OK
-//  wait_n.tv_nsec=1000000; // OK
+  wait_n.tv_sec=1;
+  wait_n.tv_nsec=1000000; // KO 
+//  wait_n.tv_nsec=10000000; // OK
 
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;

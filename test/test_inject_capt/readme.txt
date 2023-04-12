@@ -14,7 +14,16 @@ wait_n.tv_nsec=100000
 
 
 
+-------------------------------------------------------------
+check
+/etc/modprobe.d/8812au.conf
+"
+options 88XXau rtw_led_ctrl=1
+options 88XXau rtw_monitor_disable_1m=1
+"
+Led blinking on startup means that rtw_monitor_disable_1m is set
 
+sudo sysctl -w net.core.wmem_max=2621440
 
 -------------------------------------------------------------
 
