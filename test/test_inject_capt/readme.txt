@@ -9,6 +9,8 @@ sudo ./test_inject_burst $node
 wait_n.tv_nsec=1000000
 => 1.8 Mbs
 
+wait_n.tv_nsec=100000
+=> CRASH
 
 
 
