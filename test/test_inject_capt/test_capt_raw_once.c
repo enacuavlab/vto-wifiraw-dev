@@ -27,18 +27,26 @@ int main(int argc, char *argv[]) {
 */
   // sudo tcpdump ether dst host ff:05:ff:ff:ff:ff -dd
   struct sock_filter bpf_bytecode[] = { 
+/*
     { 0x20, 0, 0, 0x00000002 },
     { 0x15, 0, 3, 0xffffffff },
+*/
     { 0x28, 0, 0, 0x00000000 },
     { 0x15, 0, 1, 0x0000ff05 },
     { 0x6, 0, 0, 0x00040000 },
     { 0x6, 0, 0, 0x00000000 },
   };
 
+/*
+  struct sock_filter bpf_bytecode[] = { 
+    { 0x06,  0,  0, 0xffffffff },    keep: ret #-1        
+  };
+*/
   uint16_t fd = 0;
   if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
+//  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,htons(ETH_P_ALL)))) exit(-1);
   struct sock_fprog bpf_program = { sizeof(bpf_bytecode) / sizeof(bpf_bytecode[0]), bpf_bytecode};
-//  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
 
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
