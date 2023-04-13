@@ -1,48 +1,53 @@
+#include <net/if.h>
+#include <sys/ioctl.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <linux/filter.h>
+
 #include "test_inject.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
   setpriority(PRIO_PROCESS, 0, -10);
-/*
-  char errbuf[PCAP_ERRBUF_SIZE];
-  pcap_t *ppcap = pcap_create(argv[1], errbuf);
 
-  if (pcap_set_snaplen(ppcap, 4096) !=0)       exit(-1);
-  if (pcap_set_promisc(ppcap, 1) != 0)         exit(-1);
-  if (pcap_set_timeout(ppcap, -1) !=0)         exit(-1);
-  if (pcap_set_immediate_mode(ppcap, 1) != 0)  exit(-1);
-  if (pcap_activate(ppcap) !=0)                exit(-1);
-  if (pcap_setnonblock(ppcap, 1, errbuf) != 0) exit(-1);
-
-  int nLinkEncap = pcap_datalink(ppcap);
-*/
   uint8_t port = 5;
-  char szProgram[512];
-  if (nLinkEncap == DLT_IEEE802_11_RADIO) {
-    sprintf(szProgram, "ether[0x00:2] == 0x8800 && ether[0x04:2] == 0xff%.2x", port); // match on frametype and port
-  } else exit(-1);
 
-/*  struct bpf_program bpfprogram;
-  if (pcap_compile(ppcap, &bpfprogram, szProgram, 1, 0) == -1) exit(-1);
-  if (pcap_setfilter(ppcap, &bpfprogram) == -1) exit(-1);
-  pcap_freecode(&bpfprogram);
-
-  int fd = pcap_get_selectable_fd(ppcap);
+  // match on frametype and port
+  // tcpdump 'ether[0x00:2] = 0x8800 and ether[0x04:2] = 0xff05' -dd
+  struct sock_filter bpf_bytecode[] = { 
+/*
+    { 0x28, 0, 0, 0x00000000 },
+    { 0x15, 0, 3, 0x00008800 },
+    { 0x28, 0, 0, 0x00000004 },
+    { 0x15, 0, 1, 0x0000ff05 },
+    { 0x6, 0, 0, 0x00040000 },
+    { 0x6, 0, 0, 0x00000000 },
 */
+    { 0x28, 0, 0, 0x00000000 },
+    { 0x15, 0, 1, 0x00008800 },
+    { 0x6, 0, 0, 0x00040000 },
+    { 0x6, 0, 0, 0x00000000 },
+  };
+
   uint16_t fd = 0;
   if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
+  struct sock_fprog bpf_program = { sizeof(bpf_bytecode) / sizeof(bpf_bytecode[0]), bpf_bytecode};
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
+
   struct ifreq ifr;
+  memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
-  if( ioctl( fd, SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
+  if (ioctl( fd, SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
   struct sockaddr_ll sll;
   memset( &sll, 0, sizeof( sll ) );
   sll.sll_family   = AF_PACKET;
   sll.sll_ifindex  = ifr.ifr_ifindex;
   sll.sll_protocol = htons( ETH_P_ALL );
+  if (-1 == bind(fd, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
   struct timespec curr;
-  struct pcap_pkthdr *hdr = NULL;
   uint64_t stp_n, curr_n; 
   float delta_m;
   uint16_t n, u16HeaderLen,len,seq;
@@ -55,25 +60,31 @@ int main(int argc, char *argv[]) {
   if(n == 0) exit(-1);
   if(FD_ISSET(fd, &readset)) {  // Less CPU consumption than pcap_loop()
 
-/*
-    if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pu8)) {
-*/
-      clock_gettime( CLOCK_MONOTONIC, &curr);
+    if ( n == 1 ) {
+      uint8_t packetBuffer[4096];
+      ssize_t bytes = read( fd, packetBuffer, sizeof(packetBuffer) );
 
-      u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
-      payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
+      if (bytes >=0 ) {
 
-      pu8 += payload;
-      seq = (((pay_hdr_t *)pu8)->seq); 
-      len = (((pay_hdr_t *)pu8)->len); 
-      stp_n = (((pay_hdr_t *)pu8)->stp_n);
+        clock_gettime( CLOCK_MONOTONIC, &curr);
+ 
+        pu8 = packetBuffer;
 
-      curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
-      delta_m = (float)(curr_n - stp_n) / 1000000;
-      
-      printf("(%d)(%d)\n",seq,len);
-      printf("(%ld)\n",stp_n);
-      printf("(%.03f)\n",delta_m);
+        u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
+        payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
+  
+        pu8 += payload;
+        seq = (((pay_hdr_t *)pu8)->seq); 
+        len = (((pay_hdr_t *)pu8)->len); 
+        stp_n = (((pay_hdr_t *)pu8)->stp_n);
+  
+        curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
+        delta_m = (float)(curr_n - stp_n) / 1000000;
+        
+        printf("(%d)(%d)\n",seq,len);
+        printf("(%ld)\n",stp_n);
+        printf("(%.03f)\n",delta_m);
+      }
     }
   }
 }

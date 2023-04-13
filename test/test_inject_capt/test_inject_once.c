@@ -1,3 +1,5 @@
+#include <pcap.h>
+
 #include "test_inject.h"
 
 #define PKT_SIZE_MAX 2311
