@@ -1,6 +1,6 @@
 #include <pcap.h>
 
-#include "test_inject.h"
+#include "capt_inject.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {

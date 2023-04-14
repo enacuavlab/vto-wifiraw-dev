@@ -4,7 +4,7 @@
 #include <net/ethernet.h>
 #include <netinet/in.h>
 
-#include "test_inject.h"
+#include "capt_inject.h"
 
 #define PKT_SIZE_MAX 2311
 

@@ -1,5 +1,6 @@
 #include <pcap.h>
-#include "test_inject.h"
+
+#include "capt_inject.h"
 
 #define PKT_SIZE_MAX 2311
 
@@ -35,36 +36,22 @@ int main(int argc, char *argv[]) {
   if (pcap_set_immediate_mode(ppcap, 1) != 0) exit(-1);
   if (pcap_activate(ppcap) !=0) exit(-1);
 
-  uint64_t stp_n;
   uint16_t data_len, trans_len, ret, seq = 0;
-  struct timespec stp, wait_n;
-  wait_n.tv_sec=0;
-  wait_n.tv_nsec=1000000; // KO 
-//  wait_n.tv_nsec=10000000; // OK
+  struct timespec stp;
+  uint64_t stp_n;
 
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
-  for (int i=0;i<820;i++) {
+  (((pay_hdr_t *)pu8)->seq) = seq;
+  (((pay_hdr_t *)pu8)->len) = data_len;
 
-    nanosleep(&wait_n,&wait_n); 
-    (((pay_hdr_t *)pu8)->seq) = seq;
-    (((pay_hdr_t *)pu8)->len) = data_len;
-  
-    clock_gettime( CLOCK_MONOTONIC, &stp);
-    stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-  
-    (((pay_hdr_t *)pu8)->stp_n) = stp_n;
-  
-    ret = pcap_inject(ppcap, buf, trans_len);
-    if (ret <= 0) {
-      printf("pcap_inject failure (%s)\n",pcap_geterr(ppcap));
-      exit(-1);
-    }
-    printf("(%d)(%d)(%d)\n",seq,trans_len,ret);
-    printf("(%ld)\n",stp_n);
-    printf("-----------------------------\n");
+  clock_gettime( CLOCK_MONOTONIC, &stp);
+  stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
-    seq++;
-  }
+  (((pay_hdr_t *)pu8)->stp_n) = stp_n;
+
+  ret = pcap_inject(ppcap, buf, trans_len);
+  printf("(%d)(%d)(%d)\n",seq,trans_len,ret);
+  printf("(%ld)\n",stp_n);
 }
