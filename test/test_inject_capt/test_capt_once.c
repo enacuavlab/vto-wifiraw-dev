@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
   uint64_t stp_n, curr_n; 
   float delta_m;
   uint16_t n, u16HeaderLen,len,seq;
-  uint8_t *pu8,payload;
+  uint8_t *pu8,*pu8_begin,payload;
   
   fd_set readset;
   FD_ZERO(&readset);
@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
     if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pu8)) {
 
       clock_gettime( CLOCK_MONOTONIC, &curr);
+
+      pu8_begin = pu8;
 
       u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
       payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
@@ -62,6 +64,9 @@ int main(int argc, char *argv[]) {
       printf("(%d)(%d)\n",seq,len);
       printf("(%ld)\n",stp_n);
       printf("(%.03f)\n",delta_m);
+
+
+      for (int i=0;i<10;i++) printf("%x ",pu8_begin[i]);
     }
   }
 }

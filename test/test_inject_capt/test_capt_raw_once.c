@@ -12,42 +12,20 @@ int main(int argc, char *argv[]) {
 
   setpriority(PRIO_PROCESS, 0, -10);
 
-  uint8_t port = 5;
+  uint32_t port = 6;
 
-  // match on frametype and port
-  // tcpdump 'ether[0x00:2] = 0x8800 and ether[0x04:2] = 0xff05' -dd
-/*
   struct sock_filter bpf_bytecode[] = { 
-    { 0x28, 0, 0, 0x00000000 },
-    { 0x15, 0, 3, 0x00008800 },
-    { 0x28, 0, 0, 0x00000004 },
-    { 0x15, 0, 1, 0x0000ff05 },
-    { 0x6, 0, 0, 0x00040000 },
-    { 0x6, 0, 0, 0x00000000 },
-*/
-  // sudo tcpdump ether dst host ff:05:ff:ff:ff:ff -dd
-  struct sock_filter bpf_bytecode[] = { 
-/*
-    { 0x20, 0, 0, 0x00000002 },
-    { 0x15, 0, 3, 0xffffffff },
-*/
-    { 0x28, 0, 0, 0x00000000 },
-    { 0x15, 0, 1, 0x0000ff05 },
-    { 0x6, 0, 0, 0x00040000 },
-    { 0x6, 0, 0, 0x00000000 },
+    { 0x30,  0,  0, 0x00000028 }, // Ldb = 0x30, load one byte at position 0x28 (offset = 40) to A
+    { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
+    { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
+    { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
   };
-
-/*
-  struct sock_filter bpf_bytecode[] = { 
-    { 0x06,  0,  0, 0xffffffff },    keep: ret #-1        
-  };
-*/
-  uint16_t fd = 0;
-  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
-//  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,htons(ETH_P_ALL)))) exit(-1);
+  ((struct sock_filter *)&bpf_bytecode[1])->k = port;
   struct sock_fprog bpf_program = { sizeof(bpf_bytecode) / sizeof(bpf_bytecode[0]), bpf_bytecode};
-  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
 
+  uint16_t fd = 0, protocol = htons(ETH_P_ALL); 
+  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,protocol))) exit(-1);
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
@@ -56,7 +34,7 @@ int main(int argc, char *argv[]) {
   memset( &sll, 0, sizeof( sll ) );
   sll.sll_family   = AF_PACKET;
   sll.sll_ifindex  = ifr.ifr_ifindex;
-  sll.sll_protocol = htons( ETH_P_ALL );
+  sll.sll_protocol = protocol;
   if (-1 == bind(fd, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
   struct timespec curr;
@@ -96,6 +74,8 @@ int main(int argc, char *argv[]) {
         printf("(%d)(%d)\n",seq,len);
         printf("(%ld)\n",stp_n);
         printf("(%.03f)\n",delta_m);
+
+	for (int i=0;i<10;i++) printf("%x ",packetBuffer[i]);
       }
     }
   }
