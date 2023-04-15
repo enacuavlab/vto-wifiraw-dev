@@ -32,7 +32,6 @@ int main(int argc, char *argv[]) {
   uint8_t hdr_len = pu8 - buf;
 
   uint16_t data_len, trans_len, ret, seq = 0;
-  struct timespec stp;
   uint64_t stp_n;
 
   data_len = PKT_DATA;
@@ -51,8 +50,14 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = htons( ETH_P_ALL );
   if((ret = bind(fd, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
 
-  for (int i=0;i<5;i++) {
+  struct timespec stp, wait_n;
+  wait_n.tv_sec=0;
+  wait_n.tv_nsec=10000;
+//  wait_n.tv_nsec=10000000;
 
+  for (int i=0;i<8200;i++) {
+
+//    nanosleep(&wait_n,&wait_n); 
     (((pay_hdr_t *)pu8)->seq) = seq;
     (((pay_hdr_t *)pu8)->len) = data_len;
   

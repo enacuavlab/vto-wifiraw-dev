@@ -1,18 +1,64 @@
 No options on modprobe
 Channel 140
-#ifdef LEGACY
+
+#define LEGACY
+0x0c // x 500kHz = 6Mb
+0x48 // x 500kHz = 36Mb
+(0x60 // x 500kHz = 48Mb not significant)
+
+sudo ./test_pcap_capt_burst $node
+sudo ./test_pcap_inject_burst $node
+
+----
+wait_n.tv_nsec=10000000 // 10 ms
+
+Big packet:
+800 x 2248 (2311) = 1.8 M
+8199.959
+=> 220 Kbs
+Latency: 4.45 ms
+
+Medium packet:
+800 x 1447 (2311)
+Latency: 2.270 ms
+
+----
+wait_n.tv_nsec=1000000 // 1 ms
+
+Big packet:
+800 x 2311
+! System Crash !
+
+Medium packet:
+800 x 1447 (1510) = 1.16 M
+---
+0x0c
+1269.469
+=> 914 Kbs
+Latency: 194 ms
+---
 0x48
-sudo ./test_capt_burst $node
-sudo ./test_inject_burst $node
+965.097
+=> 1.6 Mps 
+Latency: 1.593
 
-800 x 2311 (2248)
-wait_n.tv_nsec=1000000
-=> 1.8 Mbs
+----
+wait_n.tv_nsec=100000 // 0.1 ms
 
-wait_n.tv_nsec=100000
-=> CRASH
+Medium packet:
+800 x 1447 (1510)
+! Packets lost !
 
-
+Small packet:
+800 x 437 (500) = 350 K
+---
+0x0c
+! Packets lost !
+---
+0x48
+156.449
+=> 2.2 Kbs
+Latency 1.087
 
 -------------------------------------------------------------
 check

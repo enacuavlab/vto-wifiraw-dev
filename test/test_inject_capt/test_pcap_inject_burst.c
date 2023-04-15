@@ -2,7 +2,9 @@
 
 #include "capt_inject.h"
 
-#define PKT_SIZE_MAX 2311
+//#define PKT_SIZE_MAX 2311
+#define PKT_SIZE_MAX 1510
+//#define PKT_SIZE_MAX 500
 
 #define PKT_SIZE PKT_SIZE_MAX
 //#define PKT_SIZE 1510
@@ -40,8 +42,9 @@ int main(int argc, char *argv[]) {
   uint16_t data_len, trans_len, ret, seq = 0;
   struct timespec stp, wait_n;
   wait_n.tv_sec=0;
-  wait_n.tv_nsec=1000000; // KO 
-//  wait_n.tv_nsec=10000000; // OK
+  wait_n.tv_nsec=100000;  // 0.1 ms
+//  wait_n.tv_nsec=1000000;  // 1 ms OK
+//  wait_n.tv_nsec=10000000; // 10 ms OK
 
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
