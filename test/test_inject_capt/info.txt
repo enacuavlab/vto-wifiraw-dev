@@ -1,6 +1,12 @@
 for switching channels (interface must be up)
 
 -------------------------------------------------------------------------------
+Dynamic bitrate setting
+
+Settings mcs index via radiotap header is in kernel since early 4.x.x.
+- mcs index 0 (1MBit).
+- mcs index 1 (6MBit).
+
 to inject frames with b/g rates use the Rate field in the radiotap header
 (1, 2, 5.5 and 11 Mbps / 6, 9, 12, 18, 24, 36, 48 and 54 Mbps)
 

@@ -14,7 +14,7 @@ do
   sudo ip link set $dongle down
   sudo iw dev $dongle set type monitor
   sudo ip link set $dongle up
-  sudo iw dev $dongle set channel 140
+  sudo iw dev $dongle set channel 165
 done
 
 #sudo iwlist $dongle channel

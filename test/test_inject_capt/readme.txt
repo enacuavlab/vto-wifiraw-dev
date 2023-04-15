@@ -1,5 +1,6 @@
 No options on modprobe
 Channel 140
+Channel 165 // width 20MHz, MCS #1 (QPSK 1/2) with long GI.
 
 #define LEGACY
 0x0c // x 500kHz = 6Mb
