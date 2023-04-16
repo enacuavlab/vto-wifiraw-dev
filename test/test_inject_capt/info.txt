@@ -1,7 +1,7 @@
 for switching channels (interface must be up)
 
 -------------------------------------------------------------------------------
-Dynamic bitrate setting
+Dynamic bitrate setting via radiotap header
 
 Settings mcs index via radiotap header is in kernel since early 4.x.x.
 - mcs index 0 (1MBit).
