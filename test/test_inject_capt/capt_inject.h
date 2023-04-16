@@ -42,7 +42,6 @@ static const uint8_t radiotap_hdr[] = {
   0x0c, //<-- tx power
   0x01 //<-- antenna
 };
-
 #else
 // https://mcsindex.com/
 #define IEEE80211_RADIOTAP_MCS_HAVE_BW    0x01
