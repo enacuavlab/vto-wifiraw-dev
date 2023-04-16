@@ -10,6 +10,9 @@ Radiotap :
 0x60 // x 500kHz = 48Mb
 0x6C // x 500kHz = 54Mb
 
+0x81 to 0x87 (1000 0007 : MCS 7) 
+
+
 sudo ./test_pcap_capt_burst $node
 sudo ./test_pcap_inject_burst $node
 
