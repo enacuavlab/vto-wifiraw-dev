@@ -1,7 +1,9 @@
 /etc/modprobe.d/8812au.conf
 options 88XXau rtw_monitor_disable_1m=1
 
-Channel 165 // width 20MHz, MCS #1 (QPSK 1/2) with long GI.
+Channel 165 // width 20MHz, MCS 1 to 5 with SGI 
+same as 54Mb for MCS 5 (=> 4.4 Mb/s ?)
+
 
 Radiotap :
 #define LEGACY

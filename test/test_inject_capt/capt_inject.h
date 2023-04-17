@@ -31,7 +31,7 @@ static const uint8_t llc_hdr[] = {
 };
 
 /*****************************************************************************/
-//#define LEGACY  // Just comment this line to swith bitrate setting 
+#define LEGACY  // Just comment this line to swith bitrate setting 
 #ifdef LEGACY
 static const uint8_t radiotap_hdr[] = {
   0x00, 0x00, // <-- radiotap version + pad byte
@@ -52,9 +52,25 @@ static const uint8_t radiotap_hdr[] = {
   0x08, 0x00,  // contents: IEEE80211_RADIOTAP_F_TX_NOACK(0x08)
   0x16,        // mcs_known: 0x16 = IEEE80211_RADIOTAP_MCS_HAVE_BW(0x01) | IEEE80211_RADIOTAP_MCS_HAVE_MCS(0x02) IEEE80211_RADIOTAP_MCS_HAVE_GI(0x04)
   0x04,        // mcs_flags: |= IEEE80211_RADIOTAP_MCS_BW_20(0) |= IEEE80211_RADIOTAP_MCS_SGI(0x04); 
-  0x06         // mcs_index
+  0x05         // mcs_index
 };
 #endif /* LEGACY */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 // https://mcsindex.com/
 #define IEEE80211_RADIOTAP_MCS_HAVE_BW    0x01
