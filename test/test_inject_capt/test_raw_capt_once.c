@@ -4,6 +4,9 @@
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <linux/filter.h>
+#include <unistd.h>
+#include <fcntl.h>
+
 
 #include "capt_inject.h"
 
@@ -23,9 +26,12 @@ int main(int argc, char *argv[]) {
   ((struct sock_filter *)&bpf_bytecode[1])->k = port;
   struct sock_fprog bpf_program = { sizeof(bpf_bytecode) / sizeof(bpf_bytecode[0]), bpf_bytecode};
 
+  uint8_t flags;
   uint16_t fd = 0, protocol = htons(ETH_P_ALL); 
-  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,protocol))) exit(-1);
-  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
+  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,protocol))) exit(-1); // default is blocking
+  if (-1 == (flags = fcntl(fd, F_GETFL))) exit(-1);
+  if (-1 == (fcntl(fd, F_SETFL, flags | O_NONBLOCK))) exit(-1);
+
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
@@ -43,6 +49,12 @@ int main(int argc, char *argv[]) {
   uint16_t n, u16HeaderLen,len,seq;
   uint8_t *pu8,payload;
   
+  char drain[1];
+  while (recv(fd, drain, sizeof(drain), MSG_DONTWAIT) >= 0) {
+    printf("----\n");
+  };
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
+
   fd_set readset;
   FD_ZERO(&readset);
   FD_SET(fd, &readset);
@@ -74,6 +86,8 @@ int main(int argc, char *argv[]) {
         printf("(%d)(%d)\n",seq,len);
         printf("(%ld)\n",stp_n);
         printf("(%.03f)\n",delta_m);
+      } else {
+        printf("bytes < 0\n");
       }
     }
   }

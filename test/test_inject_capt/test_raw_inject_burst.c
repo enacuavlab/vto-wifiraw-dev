@@ -32,10 +32,8 @@ int main(int argc, char *argv[]) {
   uint8_t hdr_len = pu8 - buf;
 
   uint16_t data_len, trans_len, ret, seq = 0;
+  struct timespec stp, wait_n;
   uint64_t stp_n;
-
-  data_len = PKT_DATA;
-  trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
   uint16_t fd = 0;
   if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
@@ -50,23 +48,28 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = htons( ETH_P_ALL );
   if((ret = bind(fd, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
 
-  struct timespec stp, wait_n;
-  wait_n.tv_sec=0;
-  wait_n.tv_nsec=10000;
-//  wait_n.tv_nsec=10000000;
+  wait_n.tv_sec=1;
+  wait_n.tv_nsec=0;  // 10 ms
 
-  for (int i=0;i<8200;i++) {
+  data_len = PKT_DATA;
+  trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
-//    nanosleep(&wait_n,&wait_n); 
+  for (int i=0;i<10;i++) {
+  
+    nanosleep(&wait_n,&wait_n); 
     (((pay_hdr_t *)pu8)->seq) = seq;
     (((pay_hdr_t *)pu8)->len) = data_len;
-  
+
     clock_gettime( CLOCK_MONOTONIC, &stp);
     stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-  
+
     (((pay_hdr_t *)pu8)->stp_n) = stp_n;
     ret = write(fd, buf, trans_len);
-  
+    if (ret <= 0) {
+      printf("wriute failure\n");
+      exit(-1);
+    }
+
     printf("(%d)(%d)(%d)\n",seq,trans_len,ret);
     printf("(%ld)\n",stp_n);
     printf("-----------------------------\n");

@@ -39,7 +39,8 @@ int main(int argc, char *argv[]) {
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
   uint16_t fd = 0;
-  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
+  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW | SOCK_NONBLOCK,IPPROTO_RAW))) exit(-1);
+//  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
