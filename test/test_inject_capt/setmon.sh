@@ -1,4 +1,4 @@
-sudo systemctl stop  NetworkManager 
+#sudo systemctl stop  NetworkManager 
 
 declare -a usbwifidongles=(wlx7c10c91c408e wlxfc34972ed57c)
 #declare -a usbwifidongles=(wlxfc349725a319 wlxfc349725a317)
@@ -14,7 +14,7 @@ do
   sudo ip link set $dongle down
   sudo iw dev $dongle set type monitor
   sudo ip link set $dongle up
-  sudo iw dev $dongle set channel 165
+  sudo iw dev $dongle set channel 140
 done
 
 #sudo iwlist $dongle channel

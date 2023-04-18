@@ -12,10 +12,10 @@ int main(int argc, char *argv[]) {
 
   setpriority(PRIO_PROCESS, 0, -10);
 
-  uint32_t port = 6;
+  uint32_t port = 5;
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x00000028 }, // Ldb = 0x30, load one byte at position 0x28 (offset = 40) to A
+    { 0x30,  0,  0, 0x00000025 }, // Ldb = 0x30, load one byte at position 0x25 (offset = 37) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -74,8 +74,6 @@ int main(int argc, char *argv[]) {
         printf("(%d)(%d)\n",seq,len);
         printf("(%ld)\n",stp_n);
         printf("(%.03f)\n",delta_m);
-
-	for (int i=0;i<10;i++) printf("%x ",packetBuffer[i]);
       }
     }
   }
