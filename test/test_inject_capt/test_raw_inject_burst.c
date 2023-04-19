@@ -6,8 +6,8 @@
 
 #include "capt_inject.h"
 
-//#define PKT_SIZE_MAX 2311
-#define PKT_SIZE_MAX 1510
+#define PKT_SIZE_MAX 2311
+//#define PKT_SIZE_MAX 1510
 //#define PKT_SIZE_MAX 500
 
 #define PKT_SIZE PKT_SIZE_MAX
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
-  for (int i=0;i<820;i++) {
+  for (int i=0;i<1800;i++) {
   
     nanosleep(&wait_n,&wait_n); 
     (((pay_hdr_t *)pu8)->seq) = seq;
@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     (((pay_hdr_t *)pu8)->stp_n) = stp_n;
     ret = write(fd, buf, trans_len);
     if (ret <= 0) {
-      printf("wriute failure\n");
+      printf("write failure\n");
       exit(-1);
     }
 
