@@ -6,7 +6,9 @@
 
 #include "capt_inject.h"
 
-#define PKT_SIZE_MAX 2311
+//#define PKT_SIZE_MAX 2311
+#define PKT_SIZE_MAX 1510
+//#define PKT_SIZE_MAX 500
 
 #define PKT_SIZE PKT_SIZE_MAX
 //#define PKT_SIZE 1510
@@ -48,13 +50,13 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = htons( ETH_P_ALL );
   if((ret = bind(fd, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
 
-  wait_n.tv_sec=1;
-  wait_n.tv_nsec=0;  // 10 ms
+  wait_n.tv_sec=0;
+  wait_n.tv_nsec=400000; // 400 micro s
 
   data_len = PKT_DATA;
   trans_len = hdr_len + sizeof(pay_hdr_t) + data_len;
 
-  for (int i=0;i<10;i++) {
+  for (int i=0;i<820;i++) {
   
     nanosleep(&wait_n,&wait_n); 
     (((pay_hdr_t *)pu8)->seq) = seq;
