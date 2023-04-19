@@ -32,6 +32,10 @@ int main(int argc, char *argv[]) {
   if (-1 == (flags = fcntl(fd, F_GETFL))) exit(-1);
   if (-1 == (fcntl(fd, F_SETFL, flags | O_NONBLOCK))) exit(-1);
 
+  struct sock_filter zero_bytecode = BPF_STMT(BPF_RET | BPF_K, 0);
+  struct sock_fprog zero_program = { 1, &zero_bytecode};
+  if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &zero_program, sizeof(zero_program))) exit(-1);
+
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
