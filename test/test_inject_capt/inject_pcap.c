@@ -3,8 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <pcap.h>
 #include <errno.h>
+
+#include <pcap.h>
 
 #define IEEE80211_RADIOTAP_MCS_SGI 0x04
 
@@ -64,7 +65,7 @@ int main(int argc, char *argv[])
         uint8_t *pu8 = buffer;
 
 	char szErrbuf[PCAP_ERRBUF_SIZE], hw_mode = 'n';
-	int i, r, rate_index = 5, sgi_flag = 0, num_packets = 10000, payload_len = 1450, packet_size ,  nDelay = 400;
+	int i, r, rate_index = 5, sgi_flag = 1, num_packets = 10000, payload_len = 1450, packet_size ,  nDelay = 400;
 	pcap_t *ppcap = NULL;
 
 	// open the interface in pcap

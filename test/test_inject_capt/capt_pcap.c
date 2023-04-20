@@ -1,6 +1,14 @@
+#include <time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <unistd.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdint.h>
+
 #include <pcap.h>
 
-#include "capt_inject.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -57,6 +65,7 @@ int main(int argc, char *argv[]) {
         if (first) { clock_gettime( CLOCK_MONOTONIC, &start); first = false; }
 	
         u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
+/*
         payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
   
         pu8 += payload;
@@ -73,6 +82,7 @@ int main(int argc, char *argv[]) {
   
 	if (!first) total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
         printf("(%.03f)\n",total_m);
+*/
         printf("(%ld)\n",nb);
   
 	printf("----------------------------------\n");
