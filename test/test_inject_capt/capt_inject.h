@@ -31,7 +31,7 @@ static const uint8_t llc_hdr[] = {
 };
 
 /*****************************************************************************/
-//#define LEGACY  // Just comment this line to swith bitrate setting 
+#define LEGACY  // Just comment this line to swith bitrate setting 
 #ifdef LEGACY
 static const uint8_t radiotap_hdr[] = {
   0x00, 0x00, // <-- radiotap version + pad byte

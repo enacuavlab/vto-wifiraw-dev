@@ -1,0 +1,17 @@
+sudo systemctl stop NetworkManager.service; sudo systemctl stop wpa_supplicant.service
+
+sudo apt-get install hcxdumptool
+
+hcxdumptool -I
+
+sudo hcxdumptool --check_driver
+
+export node=wlx7c10c91c408e
+
+sudo ip link set $node down
+sudo iw dev $node set type monitor
+sudo ip link set $node up
+
+sudo hcxdumptool -i $node --check_injection
+
+sudo hcxdumptool -o dump.pcapng -i $node --enable_status=15  

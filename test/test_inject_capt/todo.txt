@@ -1,1 +1,2 @@
+Make driver not freezing 
 Test non legacy bitrate setting
