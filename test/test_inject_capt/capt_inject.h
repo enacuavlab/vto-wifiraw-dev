@@ -31,7 +31,7 @@ static const uint8_t llc_hdr[] = {
 };
 
 /*****************************************************************************/
-#define LEGACY  // Just comment this line to swith bitrate setting 
+//#define LEGACY  // Just comment this line to swith bitrate setting 
 #ifdef LEGACY
 static const uint8_t radiotap_hdr[] = {
   0x00, 0x00, // <-- radiotap version + pad byte
@@ -44,6 +44,7 @@ static const uint8_t radiotap_hdr[] = {
 #else
 // https://mcsindex.com/
 // from  <net/ieee80211_radiotap.h>
+/*
 static const uint8_t radiotap_hdr[] = {
   0x00, 0x00,  // radiotap version
   0x0d, 0x00,  // radiotap header length
@@ -53,7 +54,36 @@ static const uint8_t radiotap_hdr[] = {
   0x16,        // mcs_known: 0x16 = IEEE80211_RADIOTAP_MCS_HAVE_BW(0x01) | IEEE80211_RADIOTAP_MCS_HAVE_MCS(0x02) IEEE80211_RADIOTAP_MCS_HAVE_GI(0x04)
   0x04,        // mcs_flags: |= IEEE80211_RADIOTAP_MCS_BW_20(0) |= IEEE80211_RADIOTAP_MCS_SGI(0x04); 
   0x05         // mcs_index
-};
+};*/
+static const uint8_t radiotap_hdr[] = {
+  0x00, 0x00, // <-- radiotap version
+  0x1c, 0x00, // <- radiotap header length
+  0x6f, 0x08, 0x08, 0x00, // <-- bitmap
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // <-- timestamp
+  0x00, // <-- flags (Offset +0x10)
+  0x6c, // <-- rate (0ffset +0x11)
+  0x71, 0x09, 0xc0, 0x00, // <-- channel
+  0xde, // <-- antsignal
+  0x00, // <-- antnoise
+  0x01, // <-- antenna
+  0x02, 0x00, 0x0f,  // <-- MCS
+}; 
+/*
+#define OFFSET_RATE 0x11
+#define MCS_OFFSET 0x19
+
+radiotap_hdr[OFFSET_RATE] = 6*2; // 6*2 , 9*2 , 12*2 , 18*2 , 24*2 , 36*2 , 48*2 , 54*2
+buffer[MCS_OFFSET] = 0x00;
+
+#define GI_OFFSET 0x1a
+#define MCS_RATE_OFFSET 0x1b
+
+radiotap_hdr[MCS_RATE_OFFSET] = 0; // 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7
+radiotap_hdr[MCS_OFFSET] = 0x07;
+radiotap_hdr[GI_OFFSET] = 0x04; //  IEEE80211_RADIOTAP_MCS_SGI(0x04)
+*/
+
+
 #endif /* LEGACY */
 
 

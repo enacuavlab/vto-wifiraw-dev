@@ -1,2 +1,5 @@
+Rebuild tests according to inject_80211.c and capt_80211.c
+
 Make driver not freezing 
 Test non legacy bitrate setting
+
