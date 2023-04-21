@@ -1,27 +1,11 @@
 /etc/modprobe.d/8812au.conf
 options 88XXau rtw_monitor_disable_1m=1
 
-Channel 140 // width 20MHz, MCS 1 to 5 with SGI 
-same as 54Mb for MCS 5 (=> 4 Mb/s ?)
+Channel 140 , width 20MHz, MCS 5 => 20 Mbitps
 
-
-Radiotap :
-#define LEGACY
-0x0c // x 500kHz = 6Mb
-0x48 // x 500kHz = 36Mb
-0x60 // x 500kHz = 48Mb
-0x6C // x 500kHz = 54Mb
-
-sudo ./test_raw_capt_burst $node
-sudo ./test_raw_inject_burst $node
-(or pcap version)
-
---------
-wait_n.tv_nsec=800000; // 800 micro s
-
---------
-wait_n.tv_nsec=400000; // 400 micro s
-
+sudo ./capt_raw $node
+sudo ./inject_raw $node
+(or pcap option files)
 
 -------------------------------------------------------------
 check (be carefull with filename, or you might saturate and freeze the all system)
