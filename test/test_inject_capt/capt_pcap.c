@@ -1,14 +1,6 @@
-#include <time.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdint.h>
-
 #include <pcap.h>
 
+#include "inject_capt.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -30,8 +22,6 @@ int main(int argc, char *argv[]) {
   char szProgram[512];
   if (nLinkEncap == DLT_IEEE802_11_RADIO) {
     sprintf(szProgram, "ether[0x00:2] == 0x0802 && ether[0x08:2] == 0x22%.2x", port); 
-//    sprintf(szProgram, "ether[0x04:2] == 0x22%.2x", port); // match on frametype and port
-//    sprintf(szProgram, "ether[0x00:2] == 0x8800 && ether[0x04:2] == 0x22%.2x", port); // match on frametype and port
   } else exit(-1);
 
   struct bpf_program bpfprogram;
@@ -41,12 +31,11 @@ int main(int argc, char *argv[]) {
 
   int fd = pcap_get_selectable_fd(ppcap);
 
-  bool first = true;
   struct timespec curr,start;
   struct pcap_pkthdr *hdr = NULL;
-  uint64_t stp_n, curr_n, nb=0; 
+  uint64_t inline_stp_n, curr_n, total_nb=0, total_size=0; 
   float delta_m, total_m;
-  uint16_t n, u16HeaderLen,len,seq;
+  uint16_t n, u16HeaderLen,inline_len,inline_seq;
   uint8_t *pu8,payload;
 
   for(;;) {  
@@ -59,33 +48,40 @@ int main(int argc, char *argv[]) {
   
       if (1 == pcap_next_ex(ppcap, &hdr, (const u_char**)&pu8)) {
 
-	nb++;
-  
         clock_gettime( CLOCK_MONOTONIC, &curr);
-        if (first) { clock_gettime( CLOCK_MONOTONIC, &start); first = false; }
 	
         u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
-/*
-        payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
-  
+        payload = u16HeaderLen + sizeof(ieee_hdr_data);
+
         pu8 += payload;
-        seq = (((pay_hdr_t *)pu8)->seq); 
-        len = (((pay_hdr_t *)pu8)->len); 
-        stp_n = (((pay_hdr_t *)pu8)->stp_n);
+        inline_seq = (((pay_hdr_t *)pu8)->seq); 
+        inline_len = (((pay_hdr_t *)pu8)->len); 
+        inline_stp_n = (((pay_hdr_t *)pu8)->stp_n);
   
+        if (inline_seq == 0) {
+	  start.tv_sec = curr.tv_sec; 
+	  start.tv_nsec = curr.tv_nsec; 
+	}
+
         curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
-        delta_m = (float)(curr_n - stp_n) / 1000000;
+        delta_m = (float)(curr_n - inline_stp_n) / 1000000;
         
-        printf("(%d)(%d)\n",seq,len);
-        printf("(%ld)\n",stp_n);
-        printf("(%.03f)\n",delta_m);
+        printf("seq(%d) len(%d)\n",inline_seq,inline_len);
+        printf("stamp(%ld)\n",inline_stp_n);
+        printf("delta mil(%.03f)\n",delta_m);
   
-	if (!first) total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
-        printf("(%.03f)\n",total_m);
-*/
-        printf("(%ld)\n",nb);
-  
-	printf("----------------------------------\n");
+	if (inline_seq != 0) { 
+	  total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
+          printf("total mil[%.03f]\n",total_m);
+	  printf("Mbitps(%.02f)\n",8 * total_size / (1000*total_m));
+	}
+
+	printf("total nb(%ld)\n",total_nb);
+
+	total_nb++;
+        total_size+=inline_len;
+
+	printf("-----------------------------------------\n");
       }
     }
   }

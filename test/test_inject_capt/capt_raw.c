@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "capt_inject.h"
+#include "inject_capt.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   uint32_t port = 5;
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x00000025 }, // Ldb = 0x30, load one byte at position 0x25 (offset = 37) to A
+    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -46,20 +46,19 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = protocol;
   if (-1 == bind(fd, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
-  bool first = true;
-  struct timespec curr,start;
-  uint64_t stp_n, curr_n; 
-  float delta_m, total_m;
-  uint16_t n, u16HeaderLen,len,seq;
-  uint8_t *pu8,payload;
- 
   char drain[1];
   while (recv(fd, drain, sizeof(drain), MSG_DONTWAIT) >= 0) {
     printf("----\n");
   };
   if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
 
-  uint8_t packetBuffer[4096];
+  struct timespec curr,start;
+  uint64_t inline_stp_n, curr_n, total_nb=0, total_size=0;
+  float delta_m, total_m;
+  uint16_t n, u16HeaderLen,inline_len,inline_seq;
+  uint8_t *pu8,payload;
+
+  uint8_t packetBuffer[PKT_SIZE];
   for(;;) { 
     fd_set readset;
     FD_ZERO(&readset);
@@ -74,29 +73,40 @@ int main(int argc, char *argv[]) {
         if (bytes >=0 ) {
   
           clock_gettime( CLOCK_MONOTONIC, &curr);
-	  if (first) { clock_gettime( CLOCK_MONOTONIC, &start); first = false; }
-   
-          pu8 = packetBuffer;
   
+	  pu8 = packetBuffer; 
+
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
-          payload = u16HeaderLen + sizeof(wifi_hdr) + sizeof(llc_hdr);
+          payload = u16HeaderLen + sizeof(ieee_hdr_data);
     
           pu8 += payload;
-          seq = (((pay_hdr_t *)pu8)->seq); 
-          len = (((pay_hdr_t *)pu8)->len); 
-          stp_n = (((pay_hdr_t *)pu8)->stp_n);
-    
+          inline_seq = (((pay_hdr_t *)pu8)->seq);
+          inline_len = (((pay_hdr_t *)pu8)->len);
+          inline_stp_n = (((pay_hdr_t *)pu8)->stp_n);
+  
+          if (inline_seq == 0) {
+            start.tv_sec = curr.tv_sec;
+            start.tv_nsec = curr.tv_nsec;
+          }
+  
           curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
-          delta_m = (float)(curr_n - stp_n) / 1000000;
-          
-          printf("(%d)(%d)\n",seq,len);
-          printf("(%ld)\n",stp_n);
-          printf("(%.03f)\n",delta_m);
-
-          if (!first) total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
-          printf("(%.03f)\n",total_m);
-
-	  printf("----------------------------------\n");
+          delta_m = (float)(curr_n - inline_stp_n) / 1000000;
+  
+          printf("seq(%d) len(%d)\n",inline_seq,inline_len);
+          printf("stamp(%ld)\n",inline_stp_n);
+          printf("delta mil(%.03f)\n",delta_m);
+  
+          if (inline_seq != 0) {
+            total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
+            printf("total mil[%.03f]\n",total_m);
+            printf("Mbitps(%.02f)\n",8 * total_size / (1000*total_m));
+          }
+  
+          printf("total nb(%ld)\n",total_nb);
+  
+          total_nb++;
+          total_size+=inline_len;
+          printf("----------------------------------------\n");
         }
       }
     }
