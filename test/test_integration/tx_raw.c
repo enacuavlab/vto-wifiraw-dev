@@ -17,8 +17,8 @@ int main(int argc, char *argv[]) {
 
   uint8_t portId = 5;
 
-  uint8_t buffer[PKT_SIZE], *ieee_hdr = ieee_hdr_data;
-  uint8_t *pu8 = buffer;
+  uint8_t buffer_out[PKT_SIZE], *pu8_out = buffer_out;
+  uint8_t *ieee_hdr = ieee_hdr_data;
 
   struct timespec stp;
   uint64_t stp_n;
@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
   sll.sll_family   = AF_PACKET;
   sll.sll_ifindex  = ifr.ifr_ifindex;
   sll.sll_protocol = htons( ETH_P_ALL );
+
   if((r = bind(fd, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
 
   packet_size = PKT_SIZE;
