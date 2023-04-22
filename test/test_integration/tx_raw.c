@@ -3,85 +3,100 @@
 #include <linux/if_packet.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "inject_capt.h"
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
-  uint16_t param_pktnb  = 2000;
-  uint16_t param_pktlen = 1466;
-  uint16_t param_ndelay = 400;
+  uint8_t  param_portid = 5;
 
   setpriority(PRIO_PROCESS, 0, -10);
 
-  uint8_t portId = 5;
+  uint16_t headerSize0 = sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data);
+  uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);
 
-  uint8_t buffer_out[PKT_SIZE], *pu8_out = buffer_out;
-  uint8_t *ieee_hdr = ieee_hdr_data;
+  uint8_t cpt_d=0, fec_d = FEC_D;
+  uint32_t len_d[fec_d];
+  uint8_t buf_d[fec_d][PKT_SIZE];
+  for (uint8_t i=0;i<fec_d;i++) {
+    len_d[i] = 0;
+    memset(buf_d[i], 0, sizeof (PKT_SIZE));
+    memcpy(buf_d[i], uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
+    memcpy(&buf_d[i][sizeof(uint8_taRadiotapHeader)], &ieee_hdr_data, sizeof(ieee_hdr_data));
+    buf_d[i][9] = param_portid;
+  }
 
-  struct timespec stp;
-  uint64_t stp_n;
-  uint16_t r,seq=0,packet_size;
+  uint16_t fd_in = 0;
+  if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  struct sockaddr_in addr;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(5000);
+  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  uint16_t r;
+  if((r = bind(fd_in, (struct sockaddr *)&addr, sizeof(addr))) == -1) exit(-1);
 
-  printf("%ld\n",DATA_SIZE);
-  if (param_pktlen >  DATA_SIZE) exit(-1);
-
-  memset(buffer, 0, sizeof (buffer));
-  memcpy(buffer, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
-  pu8 += sizeof (uint8_taRadiotapHeader);
-  ieee_hdr[9] = portId;
-  memcpy(buffer + sizeof(uint8_taRadiotapHeader), ieee_hdr, sizeof(ieee_hdr_data));
-  pu8 += sizeof (ieee_hdr_data);
-
-  uint16_t fd = 0;
-  if (-1 == (fd=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
+  uint16_t fd_out = 0;
+  if (-1 == (fd_out=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
   strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
-  if( ioctl( fd, SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
+  if( ioctl( fd_out, SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
   struct sockaddr_ll sll;
   memset( &sll, 0, sizeof( sll ) );
   sll.sll_family   = AF_PACKET;
   sll.sll_ifindex  = ifr.ifr_ifindex;
   sll.sll_protocol = htons( ETH_P_ALL );
+  if((r = bind(fd_out, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
 
-  if((r = bind(fd, (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
-
-  packet_size = PKT_SIZE;
-
+  struct timeval timeout;
+  struct timespec stp;
+  uint64_t stp_n;
+  uint32_t inl, data_size = DATA_SIZE;
+  uint16_t offset,len,seq=0;
+  uint8_t di;
+  uint8_t *pu8;
   for(;;) {
-    FD_ZERO(&rfds);
-    FD_SET(STDIN_FILENO, &rfds);
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(fd_in, &readset);
     timeout.tv_sec = 1;
-    ret = select(STDIN_FILENO + 1, &rfds, NULL, NULL, &timeout);
-    if (ret > 0) {            // headerSize1 = headerSize0 + sizeof(uint32_t)
+    r = select(fd_in + 1, &readset, NULL, NULL, &timeout);
+    if (r > 0) {     
       if (len_d[cpt_d] == 0) offset = headerSize1;
-      inl = read(STDIN_FILENO, &(buf_d[cpt_d][offset]), PKT_DATA - len_d[cpt_d] );   // fill pkts with read input
+      inl = read(fd_in, &(buf_d[cpt_d][offset]), data_size - len_d[cpt_d] );   // fill pkts with read input
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
       offset += inl;
-      if (len_d[cpt_d] == PKT_DATA) cpt_d++;
-      if (cpt_d == fec_d) ret=0;
+      if (len_d[cpt_d] == data_size) cpt_d++;
+      if (cpt_d == fec_d) r = 0;
     }
-    if (ret == 0) {
+    if (r == 0) {
+      if (len_d[0] > 0) {
+        di = 0;
+        while (di < fec_d) {
+	  if (len_d[di] == 0) di = fec_d;
+	  else {
 
-
-    (((pay_hdr_t *)pu8)->seq) = seq;
-    (((pay_hdr_t *)pu8)->len) = param_pktlen;
-    clock_gettime( CLOCK_MONOTONIC, &stp);
-    stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-    (((pay_hdr_t *)pu8)->stp_n) = stp_n;
-
-    r = write(fd, buffer, packet_size);
-    if (r != packet_size) exit(-1);
-
-    printf("(%d)(%d)\n",seq,param_pktlen);
-    printf("(%ld)\n",stp_n);
-    printf("number of packets sent = %d\r", i);
-    fflush(stdout);
-    seq++;
-    usleep(param_ndelay);
-    printf("\n");
+            pu8 = buf_d[di]; len = len_d[di] ; len_d[di] = 0; di ++;
+  
+            clock_gettime( CLOCK_MONOTONIC, &stp);
+            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+  
+            (((pay_hdr_t *)(&(pu8[headerSize0])))->seq) = seq;
+            (((pay_hdr_t *)(&(pu8[headerSize0])))->len) = len;
+            (((pay_hdr_t *)(&(pu8[headerSize0])))->stp_n) = stp_n;
+  
+            r = write(fd_out, pu8, PKT_SIZE);
+            if (r != PKT_SIZE) exit(-1);
+  
+            usleep(400);
+	  }
+	}
+	cpt_d = 0; di = 0;
+        if (seq == 65535)  seq = 0;  else seq++;
+      }
+    }
   }
 }
