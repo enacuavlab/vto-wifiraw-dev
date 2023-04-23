@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x00000033 }, // Ldb = 0x30, load one byte at position 0x33 (offset = 51) to A
+    { 0x30,  0,  0, 0x0000003B }, // Ldb = 0x30, load one byte at position 0x3B (offset = 59) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -59,9 +59,10 @@ int main(int argc, char *argv[]) {
   uint64_t stp_n, curr_n, total_nb=0, total_size=0;
   float delta_m, total_m;
   uint16_t n, u16HeaderLen,len,seq;
-  uint8_t *pu8,payload;
+  uint8_t *pu8;
+  pay_hdr_t *phd;
 
-  uint8_t packetBuffer[PKT_SIZE];
+  uint8_t packetBuffer[PKT_SIZE_1];
   for(;;) { 
     fd_set readset;
     FD_ZERO(&readset);
@@ -80,20 +81,15 @@ int main(int argc, char *argv[]) {
 	  pu8 = packetBuffer; 
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
-          payload = u16HeaderLen + sizeof(ieee_hdr_data);
-    
-          pu8 += payload;
-          seq = (((pay_hdr_t *)pu8)->seq);
-          len = (((pay_hdr_t *)pu8)->len);
-          stp_n = (((pay_hdr_t *)pu8)->stp_n);
+   
+          uint16_t headerSize0 = u16HeaderLen + sizeof(ieee_hdr_data);
+          uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);
+	  phd = &(packetBuffer[headerSize0]);
+          seq = phd->seq;
+          len = phd->len;
+          stp_n = phd->stp_n;
   
-          if (seq == 0) {
-            start.tv_sec = curr.tv_sec;
-            start.tv_nsec = curr.tv_nsec;
-          }
-  
-          pu8 += sizeof(pay_hdr_t);
-	  write(STDOUT_FILENO, pu8, len);
+	  write(STDOUT_FILENO, &packetBuffer[headerSize1], len);
         }
       }
     }

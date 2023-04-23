@@ -7,6 +7,27 @@
 #include <stdio.h>
 #include <stdint.h>
 
+
+static const uint8_t uint8_taRadiotapHeader[] = 
+{
+        0x00, 0x00, // <-- radiotap version
+        0x0c, 0x00, // <- radiotap header length
+        0x04, 0x80, 0x00, 0x00, // <-- radiotap present flags
+        0x00, // datarate (will be overwritten later in packet_header_init)
+        0x00,
+        0x00, 0x00
+};
+static uint8_t ieee_hdr_data[] =
+{
+        0x08, 0xbf, 0x00, 0x00, // frame control field (2 bytes), duration (2 bytes)
+        0xff, 0x00, 0x00, 0x00, 0x00, 0x00,// 1st byte of IEEE802.11 RA (mac) must be 0xff or something odd, otherwise strange things happen. second byte is the port (will be overwritten later)
+        0x13, 0x22, 0x33, 0x44, 0x55, 0x66, // mac
+        0x13, 0x22, 0x33, 0x44, 0x55, 0x66, // mac
+        0x00, 0x00, // IEEE802.11 seqnum, (will be overwritten later by Atheros firmware/wifi chip)
+};
+
+
+/*
 static const uint8_t uint8_taRadiotapHeader[] = 
 {
 	0x00, 0x00, // <-- radiotap version
@@ -19,7 +40,7 @@ static const uint8_t uint8_taRadiotapHeader[] =
 	0xde, // <-- antsignal
 	0x00, // <-- antnoise
 	0x01, // <-- antenna
-	0x07, 0x00, 0x05,  // <-- MCS flags (0x07), 0x0, rate index (0x05)
+	0x07, 0x00, 0x03,  // <-- MCS flags (0x07), 0x0, rate index (0x03)
 };
 
 static uint8_t ieee_hdr_data[] =
@@ -30,20 +51,25 @@ static uint8_t ieee_hdr_data[] =
         0x66, 0x55, 0x44, 0x33, 0x22, 0x33, // Destination address (another STA under the same AP)
         0x10, 0x86,                         // 0--fragment number; 0x861=2145--sequence number
 };
+*/
 
 typedef struct {
   uint16_t seq;
   uint16_t len;
   uint64_t stp_n;
-} pay_hdr_t;
+} __attribute__((packed)) pay_hdr_t;
+//} pay_hdr_t;
 
 
 //#define PKT_SIZE 2311 // 802.11 max packet size will crash the system
 
 // From gstreamer rtph264pay mtu=1400
-#define DATA_SIZE	1400 
-// Full 802.11 transmitted packet with headers, payload and CRC32
-#define PKT_SIZE (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE +  sizeof(uint32_t))
+//#define DATA_SIZE	1400 
+#define DATA_SIZE	1450 
+// Full 802.11 transmitted packet with headers, payload
+#define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
+// and CRC32
+#define PKT_SIZE_1 (PKT_SIZE_0 + sizeof(uint32_t))
 
 #define FEC_K 0
 #define FEC_N 8

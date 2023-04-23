@@ -19,15 +19,17 @@ int main(int argc, char *argv[]) {
 
   uint8_t cpt_d=0, fec_d = FEC_D;
   uint32_t len_d[fec_d];
-  uint8_t buf_d[fec_d][PKT_SIZE];
+  uint8_t buf_d[fec_d][PKT_SIZE_0];
   for (uint8_t i=0;i<fec_d;i++) {
     len_d[i] = 0;
-    memset(buf_d[i], 0, sizeof (PKT_SIZE));
+    memset(buf_d[i], 0, sizeof (PKT_SIZE_0));
     memcpy(buf_d[i], uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
     memcpy(&buf_d[i][sizeof(uint8_taRadiotapHeader)], &ieee_hdr_data, sizeof(ieee_hdr_data));
     buf_d[i][44] = param_portid;
   }
 
+  uint16_t fd_in = STDIN_FILENO;
+/*
   uint16_t fd_in = 0;
   if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
   struct sockaddr_in addr;
@@ -35,7 +37,7 @@ int main(int argc, char *argv[]) {
   addr.sin_port = htons(5000);
   addr.sin_addr.s_addr = inet_addr("127.0.0.1");
   if (-1 == bind(fd_in, (struct sockaddr *)&addr, sizeof(addr))) exit(-1);
-
+*/
   uint16_t fd_out = 0;
   if (-1 == (fd_out=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
   struct ifreq ifr;
@@ -56,6 +58,8 @@ int main(int argc, char *argv[]) {
   uint16_t offset,len,seq=0i,wait_u,delta_u,r;
   uint8_t di;
   uint8_t *pu8;
+  pay_hdr_t *phd;
+
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
@@ -68,6 +72,35 @@ int main(int argc, char *argv[]) {
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
       offset += inl;
+      if (len_d[cpt_d] == data_size) {
+        
+	    di = 0;
+
+            pu8 = buf_d[di]; len = len_d[di] ; len_d[di] = 0; di ++;
+            clock_gettime( CLOCK_MONOTONIC, &stp);
+            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+
+	    phd = &(buf_d[0][headerSize0]);
+            phd->seq = seq;
+            phd->len = len;
+            phd->stp_n = stp_n;
+
+            r = write(fd_out, &buf_d, PKT_SIZE_0);
+	  
+//	    write(STDOUT_FILENO, &pu8[headerSize1], len);
+
+
+
+	    seq++;
+            usleep( 400 );
+      }
+    }
+  }
+}
+
+//	    write(STDOUT_FILENO, &pu8[headerSize1], len);
+
+/*
       if (len_d[cpt_d] == data_size) cpt_d++;
       if (cpt_d == fec_d) r = 0;
     }
@@ -84,12 +117,15 @@ int main(int argc, char *argv[]) {
             (((pay_hdr_t *)(&(pu8[headerSize0])))->len) = len;
             (((pay_hdr_t *)(&(pu8[headerSize0])))->stp_n) = stp_n;
             r = write(fd_out, pu8, PKT_SIZE);
+
+//	    write(STDOUT_FILENO, &pu8[headerSize1], len);
+
             if (r != PKT_SIZE) exit(-1);
 	    delta_u = (stp_n - delay_n)/1000;
 	    if (delta_u > 400) wait_u = 0;
 	    else wait_u = 400 - delta_u;
 	    delay_n = stp_n;
-            usleep( wait_u );
+//            usleep( wait_u );
 	  }
 	}
 	cpt_d = 0; di = 0;
@@ -98,3 +134,4 @@ int main(int argc, char *argv[]) {
     }
   }
 }
+*/
