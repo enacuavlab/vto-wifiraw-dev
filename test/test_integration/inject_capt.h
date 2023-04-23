@@ -39,8 +39,11 @@ typedef struct {
 
 
 //#define PKT_SIZE 2311 // 802.11 max packet size will crash the system
-#define PKT_SIZE 1538
-#define DATA_SIZE (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(ieee_hdr_data) - sizeof(pay_hdr_t) - sizeof(uint32_t))
+
+// From gstreamer rtph264pay mtu=1400
+#define DATA_SIZE	1400 
+// Full 802.11 transmitted packet with headers, payload and CRC32
+#define PKT_SIZE (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE +  sizeof(uint32_t))
 
 #define FEC_K 0
 #define FEC_N 8
