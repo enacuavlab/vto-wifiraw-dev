@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x0000003B }, // Ldb = 0x30, load one byte at position 0x3B (offset = 59) to A
+    { 0x30,  0,  0, 0x00000025 }, // Ldb = 0x30, load one byte at position 0x25 (offset = 37) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -47,19 +47,16 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = protocol;
   if (-1 == bind(fd_in, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
-
   char drain[1];
   while (recv(fd_in, drain, sizeof(drain), MSG_DONTWAIT) >= 0) {
     printf("----\n");
   };
   if (-1 == setsockopt(fd_in, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
 
-
-  struct timespec curr,start;
-  uint64_t stp_n, curr_n, total_nb=0, total_size=0;
-  float delta_m, total_m;
+  struct timespec curr;
+  uint64_t stp_n;
   uint16_t n, u16HeaderLen,len,seq;
-  uint8_t *pu8;
+  uint8_t *pu8, *phead, *ppay;
   pay_hdr_t *phd;
 
   uint8_t packetBuffer[PKT_SIZE_1];
@@ -81,15 +78,15 @@ int main(int argc, char *argv[]) {
 	  pu8 = packetBuffer; 
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
-   
-          uint16_t headerSize0 = u16HeaderLen + sizeof(ieee_hdr_data);
-          uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);
-	  phd = &(packetBuffer[headerSize0]);
-          seq = phd->seq;
-          len = phd->len;
-          stp_n = phd->stp_n;
-  
-	  write(STDOUT_FILENO, &packetBuffer[headerSize1], len);
+
+	  phead = pu8 + u16HeaderLen;
+          seq = ((pay_hdr_t *)phead)->seq;
+          len = ((pay_hdr_t *)phead)->len;
+          stp_n = ((pay_hdr_t *)phead)->stp_n;
+
+	  ppay = phead + 12;
+//	  write(STDOUT_FILENO, &packetBuffer[headerSize1], len);
+          printf("(%d)(%ld)(%d)\n",seq,bytes,len);
         }
       }
     }

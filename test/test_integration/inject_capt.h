@@ -8,12 +8,12 @@
 #include <stdint.h>
 
 
-static const uint8_t uint8_taRadiotapHeader[] = 
+static uint8_t uint8_taRadiotapHeader[] = 
 {
         0x00, 0x00, // <-- radiotap version
         0x0c, 0x00, // <- radiotap header length
         0x04, 0x80, 0x00, 0x00, // <-- radiotap present flags
-        0x00, // datarate (will be overwritten later in packet_header_init)
+        0x48, // datarate (will be overwritten later in packet_header_init) 0x48 = 72, 72/2=36 Mb
         0x00,
         0x00, 0x00
 };
@@ -65,7 +65,7 @@ typedef struct {
 
 // From gstreamer rtph264pay mtu=1400
 //#define DATA_SIZE	1400 
-#define DATA_SIZE	1450 
+#define DATA_SIZE	1442 
 // Full 802.11 transmitted packet with headers, payload
 #define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
 // and CRC32
