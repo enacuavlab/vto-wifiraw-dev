@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
 	    if (delta_u > 400) wait_u = 0;
 	    else wait_u = 400 - delta_u;
 	    delay_n = stp_n;
-	    usleep(wait_u);
+//	    usleep(wait_u);
 	  }
 	}
 	cpt_d = 0; di = 0;
