@@ -55,9 +55,9 @@ int main(int argc, char *argv[]) {
 
   struct timespec curr;
   uint64_t stp_n;
-  uint16_t n, u16HeaderLen,len,seq;
-  uint8_t *pu8, *phead, *ppay;
-  pay_hdr_t *phd;
+  uint16_t headerSize0, headerSize1, u16HeaderLen,len,seq,n;
+  uint8_t *pu8, *ppay;
+  pay_hdr_t *phead;
 
   uint8_t packetBuffer[PKT_SIZE_1];
   for(;;) { 
@@ -79,14 +79,15 @@ int main(int argc, char *argv[]) {
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
 
-	  phead = pu8 + u16HeaderLen;
-          seq = ((pay_hdr_t *)phead)->seq;
-          len = ((pay_hdr_t *)phead)->len;
-          stp_n = ((pay_hdr_t *)phead)->stp_n;
+	  headerSize0 = u16HeaderLen + sizeof(ieee_hdr_data);
+	  phead = (pay_hdr_t *)(pu8 + headerSize0);
+          seq = phead->seq;
+          len = phead->len;
+          stp_n = phead->stp_n;
 
-	  ppay = phead + 12;
-//	  write(STDOUT_FILENO, &packetBuffer[headerSize1], len);
-          printf("(%d)(%ld)(%d)\n",seq,bytes,len);
+	  headerSize1 = headerSize0 + sizeof(pay_hdr_t);
+	  ppay = (pu8 + headerSize1);
+	  write(STDOUT_FILENO, ppay, len);
         }
       }
     }

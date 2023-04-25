@@ -1,2 +1,4 @@
 tx_raw / rx_raw
 tx_raw_fec / rx_raw_fec
+
+Issue big (> 150 x 1.5k)  files transmission
