@@ -1,4 +1,6 @@
 tx_raw / rx_raw
 tx_raw_fec / rx_raw_fec
 
+Issue last bits of 1440 packet
+
 Issue big (> 150 x 1.5k)  files transmission

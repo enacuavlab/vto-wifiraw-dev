@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
       pu8 = buf_d[cpt_d];
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
+      printf("inl(%d)(%p)(%p)\n",inl,buf_d[cpt_d],ppay);
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
       offset += inl;
@@ -108,6 +109,9 @@ int main(int argc, char *argv[]) {
 	    if (delta_u > 400) wait_u = 0;
 	    else wait_u = 400 - delta_u;
 	    delay_n = stp_n;
+
+	    exit(-1);
+
 //	    usleep(wait_u);
 	  }
 	}

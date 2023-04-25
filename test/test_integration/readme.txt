@@ -8,6 +8,7 @@ sudo ./rx_raw $node
 
 -------------------------------------------------------------------------------
 UNITEST:
+--------
 
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000 ! fdsink | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
@@ -20,3 +21,19 @@ sudo ./rx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconve
 fd_in = STDIN_FILENO
 write(STDOUT_FILENO
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay ! tee name=t t. ! queue ! autovideosink sync=false t. ! queue ! x264enc tune=zerolatency byte-stream=true bitrate=10000 ! fdsink | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+
+-------------------------------------------------------------------------------
+DEBUG:
+
+------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000 ! fdsink | sudo ./tx_raw $node | hexdump 
+
+sudo ./rx_raw $node | hexdump 
+
+
+------
+sudo gdb ./tx_raw
+
+b main
+r wlxfc34972ed57c < <(gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000)

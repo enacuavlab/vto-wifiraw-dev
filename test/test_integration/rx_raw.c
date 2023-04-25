@@ -87,7 +87,8 @@ int main(int argc, char *argv[]) {
 
 	  headerSize1 = headerSize0 + sizeof(pay_hdr_t);
 	  ppay = (pu8 + headerSize1);
-	  write(STDOUT_FILENO, ppay, len);
+//	  write(STDOUT_FILENO, ppay, len);
+          printf("(%d)\n",len);
         }
       }
     }
