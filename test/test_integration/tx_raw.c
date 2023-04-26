@@ -14,21 +14,23 @@ int main(int argc, char *argv[]) {
 
   setpriority(PRIO_PROCESS, 0, -10);
 
-  uint16_t headerSize0 = sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data); 
+  uint16_t headerSize0 = sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_llc) + sizeof(ieee_hdr_data); 
   uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);            
 
   uint8_t *pu8;
   uint8_t cpt_d=0, fec_d = FEC_D;
   uint32_t len_d[fec_d];
-  uint8_t buf_d[fec_d][PKT_SIZE_0];
+  uint8_t buf_d[fec_d][28 + 24 + 4 + 2 + 1400 + 12];
   for (uint8_t i=0;i<fec_d;i++) {
     len_d[i] = 0;
     pu8 = buf_d[i];
-    memset(pu8, 0, sizeof (PKT_SIZE_0));
+    memset(pu8, 0, sizeof (28 + 24 + 4 + 2 + 1400 +12 ));
     memcpy(pu8, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
     pu8 += sizeof(uint8_taRadiotapHeader);
     memcpy(pu8, ieee_hdr_data, sizeof(ieee_hdr_data));
-    buf_d[i][17] = param_portid;
+    pu8 += sizeof(ieee_hdr_data);
+    memcpy(pu8, ieee_hdr_llc, sizeof(ieee_hdr_llc));
+    buf_d[i][32] = param_portid;
   }
 
   uint16_t fd_in = STDIN_FILENO;
@@ -57,8 +59,8 @@ int main(int argc, char *argv[]) {
   struct timeval timeout;
   struct timespec stp;
   uint64_t stp_n, delay_n=0;
-  uint32_t inl, data_size = DATA_SIZE;
-  uint16_t offset,len,seq=0i,wait_u,delta_u,r;
+  uint32_t inl, data_size = 1400;
+  uint16_t offset,len,seq=0,wait_u,delta_u,r;
   uint8_t di;
   uint8_t *ppay;
   pay_hdr_t *phead;
@@ -70,11 +72,10 @@ int main(int argc, char *argv[]) {
     timeout.tv_sec = 1;
     r = select(fd_in + 1, &readset, NULL, NULL, &timeout);
     if (r > 0) {     
-      if (len_d[cpt_d] == 0) offset = headerSize1;
+      if (len_d[cpt_d] == 0) offset = 58 +12 ; // max limit be carreful to not overshoot buffer
       pu8 = buf_d[cpt_d];
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
-      printf("inl(%d)(%p)(%p)\n",inl,buf_d[cpt_d],ppay);
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
       offset += inl;
@@ -94,7 +95,7 @@ int main(int argc, char *argv[]) {
             clock_gettime( CLOCK_MONOTONIC, &stp);
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
-	    phead = (pay_hdr_t *)(pu8 + headerSize0);
+	    phead = (pay_hdr_t *)(pu8 + 58);
             phead->seq = seq;
             phead->len = len;
             phead->stp_n = stp_n;
@@ -102,17 +103,13 @@ int main(int argc, char *argv[]) {
             r = write(fd_out, pu8, PKT_SIZE_0);
             if (r != PKT_SIZE_0) exit(-1);
 
-	    ppay = (pu8 + headerSize1);
-	    write(STDOUT_FILENO, ppay, len);
+	    ppay = (pu8 + 58 + 12);
+            write(STDOUT_FILENO, ppay, len);
 
 	    delta_u = (stp_n - delay_n)/1000;
 	    if (delta_u > 400) wait_u = 0;
-	    else wait_u = 400 - delta_u;
 	    delay_n = stp_n;
-
-	    exit(-1);
-
-//	    usleep(wait_u);
+	    usleep(wait_u);
 	  }
 	}
 	cpt_d = 0; di = 0;

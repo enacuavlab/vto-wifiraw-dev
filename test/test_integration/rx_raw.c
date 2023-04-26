@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x00000025 }, // Ldb = 0x30, load one byte at position 0x25 (offset = 37) to A
+    { 0x30,  0,  0, 0x00000027 }, // Ldb = 0x30, load one byte at position 0x27 (offset = 39) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -55,11 +55,11 @@ int main(int argc, char *argv[]) {
 
   struct timespec curr;
   uint64_t stp_n;
-  uint16_t headerSize0, headerSize1, u16HeaderLen,len,seq,n;
+  uint16_t offset, u16HeaderLen,len,seq,n;
   uint8_t *pu8, *ppay;
   pay_hdr_t *phead;
 
-  uint8_t packetBuffer[PKT_SIZE_1];
+  uint8_t packetBuffer[28 + 24 + 4 + 2 + 1400 + 12 + 32];
   for(;;) { 
     fd_set readset;
     FD_ZERO(&readset);
@@ -79,16 +79,15 @@ int main(int argc, char *argv[]) {
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
 
-	  headerSize0 = u16HeaderLen + sizeof(ieee_hdr_data);
-	  phead = (pay_hdr_t *)(pu8 + headerSize0);
+	  offset = u16HeaderLen + 30;
+	  phead = (pay_hdr_t *)(pu8 + offset);
           seq = phead->seq;
           len = phead->len;
           stp_n = phead->stp_n;
 
-	  headerSize1 = headerSize0 + sizeof(pay_hdr_t);
-	  ppay = (pu8 + headerSize1);
-//	  write(STDOUT_FILENO, ppay, len);
-          printf("(%d)\n",len);
+	  offset += sizeof(pay_hdr_t);
+	  ppay = (pu8 + offset);
+	  write(STDOUT_FILENO, ppay, len);
         }
       }
     }

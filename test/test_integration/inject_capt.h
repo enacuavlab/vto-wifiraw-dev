@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-
+/*
 static uint8_t uint8_taRadiotapHeader[] = 
 {
         0x00, 0x00, // <-- radiotap version
@@ -26,8 +26,9 @@ static uint8_t ieee_hdr_data[] =
         0x00, 0x00, // IEEE802.11 seqnum, (will be overwritten later by Atheros firmware/wifi chip)
 };
 
+*/
 
-/*
+
 static const uint8_t uint8_taRadiotapHeader[] = 
 {
 	0x00, 0x00, // <-- radiotap version
@@ -51,7 +52,10 @@ static uint8_t ieee_hdr_data[] =
         0x66, 0x55, 0x44, 0x33, 0x22, 0x33, // Destination address (another STA under the same AP)
         0x10, 0x86,                         // 0--fragment number; 0x861=2145--sequence number
 };
-*/
+static uint8_t ieee_hdr_llc[] =
+{
+	0x00, 0x00, 0x00, 0x00,
+};
 
 typedef struct {
   uint16_t seq;
@@ -67,7 +71,7 @@ typedef struct {
 //#define DATA_SIZE	1400 
 #define DATA_SIZE	1442 
 // Full 802.11 transmitted packet with headers, payload
-#define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
+#define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(ieee_hdr_llc) + sizeof(pay_hdr_t) + DATA_SIZE )
 // and CRC32
 #define PKT_SIZE_1 (PKT_SIZE_0 + sizeof(uint32_t))
 
