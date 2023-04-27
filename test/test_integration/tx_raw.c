@@ -4,11 +4,38 @@
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
 
 #include "inject_capt.h"
 
+/*
+The tx_raw program gets stream input from STDIN or from UDP Port, and output to raw wifi and optionnaly STDOUT
+
+
+1) 
+sudo ./tx_raw $node
+
+2)
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000 ! fdsink | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+3)
+gst-launch-1.0 videotestsrc ! 'video/x-raw,width=1280,height=720,format=NV12,framerate=30/1' ! timeoverlay ! x264enc  tune=zerolatency bitrate=5000 speed-preset=superfast ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1
+
+sudo ./tx_raw 127.0.0.1:5000 $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+
+
+
+*/
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
+
+  char node[20],addr_str[20];
+  uint16_t port=0;
+
+  if ((argc==1)||(argc>3)) exit(-1);
+  if (argc>1) strcpy(node,argv[argc - 1]);
+  if (argc==3) { char *ch=strtok(argv[1],":"); strcpy(addr_str,&ch[0]); port=atoi(strtok(NULL,":")); }
 
   uint8_t  param_portid = 5;
 
@@ -34,20 +61,20 @@ int main(int argc, char *argv[]) {
   }
 
   uint16_t fd_in = STDIN_FILENO;
-/*
-  uint16_t fd_in = 0;
-  if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
-  struct sockaddr_in addr;
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(5000);
-  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  if (-1 == bind(fd_in, (struct sockaddr *)&addr, sizeof(addr))) exit(-1);
-*/
+  if (port!=0) {
+    if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(addr_str);
+    if (-1 == bind(fd_in, (struct sockaddr *)&addr, sizeof(addr))) exit(-1);
+  }
+
   uint16_t fd_out = 0;
   if (-1 == (fd_out=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
-  strncpy( ifr.ifr_name, argv[1], sizeof( ifr.ifr_name ) - 1 );
+  strncpy( ifr.ifr_name, node, sizeof( ifr.ifr_name ) - 1 );
   if( ioctl( fd_out, SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
   struct sockaddr_ll sll;
   memset( &sll, 0, sizeof( sll ) );
@@ -118,3 +145,4 @@ int main(int argc, char *argv[]) {
     }
   }
 }
+
