@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -g
 LDFLAGS=-lpcap 
 
-all: capt_pcap inject_pcap capt_raw inject_raw
+all: inject_pcap capt_pcap inject_raw capt_raw
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 

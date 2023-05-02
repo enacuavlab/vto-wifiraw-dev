@@ -22,22 +22,28 @@ static const uint8_t uint8_taRadiotapHeader[] =
 	0x07, 0x00, 0x05,  // <-- MCS flags (0x07), 0x0, rate index (0x05)
 };
 
-static uint8_t ieee_hdr_data[] =
-{
-        0x08, 0x02, 0x00, 0x00,             // FC 0x0801. 0--subtype; 8--type&version; 02--toDS0 fromDS1 (data packet from DS to STA)
-        0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // BSSID/MAC of AP
-        0x66, 0x55, 0x44, 0x33, 0x22, 0x22, // Source address (STA)
-        0x66, 0x55, 0x44, 0x33, 0x22, 0x33, // Destination address (another STA under the same AP)
-        0x10, 0x86,                         // 0--fragment number; 0x861=2145--sequence number
+static uint8_t ieee_hdr_data[] = {
+        0x08, 0x01,                         // Frame Control : Data frame from STA to DS
+	0x00, 0x00,                         // Duration
+        0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Receiver MAC 
+        0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Transmitter MAC
+        0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Destination MAC
+        0x10, 0x86                          // Sequence control
 };
 
 typedef struct {
   uint16_t seq;
   uint16_t len;
   uint64_t stp_n;
-} pay_hdr_t;
+} __attribute__((packed)) pay_hdr_t;
 
 
 //#define PKT_SIZE 2311 // 802.11 max packet size will crash the system
-#define PKT_SIZE 1538
-#define DATA_SIZE (PKT_SIZE - sizeof(uint8_taRadiotapHeader) - sizeof(ieee_hdr_data) - sizeof(pay_hdr_t) - sizeof(uint32_t))
+
+// From gstreamer rtph264pay mtu=1400
+//#define DATA_SIZE     1400
+#define DATA_SIZE       1442
+// Full 802.11 transmitted packet with headers, payload
+#define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
+// and CRC32
+#define PKT_SIZE_1 (PKT_SIZE_0 + sizeof(uint32_t))

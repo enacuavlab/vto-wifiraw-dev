@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
   uint16_t n, u16HeaderLen,inline_len,inline_seq;
   uint8_t *pu8,payload;
 
-  uint8_t packetBuffer[PKT_SIZE];
+  uint8_t packetBuffer[PKT_SIZE_1];
   for(;;) { 
     fd_set readset;
     FD_ZERO(&readset);
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
           if (inline_seq != 0) {
             total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
             printf("total mil[%.03f]\n",total_m);
-            printf("Mbitps(%.02f)\n",8 * total_size / (1000*total_m));
+            printf("Mbitps(%.02f)\n", total_size / (1000*total_m));
           }
   
           printf("total nb(%ld)\n",total_nb);

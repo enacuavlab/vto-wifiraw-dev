@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   int nLinkEncap = pcap_datalink(ppcap);
   char szProgram[512];
   if (nLinkEncap == DLT_IEEE802_11_RADIO) {
-    sprintf(szProgram, "ether[0x00:2] == 0x0802 && ether[0x08:2] == 0x22%.2x", port); 
+    sprintf(szProgram, "ether[0x00:2] == 0x0801 && ether[0x08:2] == 0x22%.2x", port); 
   } else exit(-1);
 
   struct bpf_program bpfprogram;
@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
 	if (inline_seq != 0) { 
 	  total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
           printf("total mil[%.03f]\n",total_m);
-	  printf("Mbitps(%.02f)\n",8 * total_size / (1000*total_m));
+	  printf("Mbitps(%.02f)\n",total_size / (1000*total_m));
 	}
 
 	printf("total nb(%ld)\n",total_nb);
