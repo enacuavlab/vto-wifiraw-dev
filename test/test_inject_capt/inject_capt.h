@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-static const uint8_t uint8_taRadiotapHeader[] = 
+static uint8_t uint8_taRadiotapHeader[] = 
 {
 	0x00, 0x00, // <-- radiotap version
 	0x1c, 0x00, // <- radiotap header length

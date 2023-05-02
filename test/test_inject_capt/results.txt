@@ -1,0 +1,38 @@
+Keep sending rate constant (800 ns),
+change bitrate in inject_raw(pcap) radiotap 
+
+sudo ./capt_raw $node
+sudo ./inject_raw $node
+
+--------------------
+param_bitrate = 0x0
+--------------------
+...
+seq(2000) len(1441)
+stamp(27047427850429)
+delta mil(223.224)
+total mil[255803.172]
+Mbitps(0.01)
+total nb(1239)
+
+--------------------
+param_bitrate = 0x3
+--------------------
+...
+seq(2000) len(1441)
+stamp(27188627403438)
+delta mil(1.394)
+total mil[3144.042]
+Mbitps(1.83)
+total nb(1996)
+
+--------------------
+param_bitrate = 0x5
+--------------------
+...
+seq(2000) len(1441)
+stamp(27265981547949)
+delta mil(0.546)
+total mil[2592.954]
+Mbitps(2.19)
+total nb(1974)

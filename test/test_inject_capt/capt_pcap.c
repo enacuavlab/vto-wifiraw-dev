@@ -31,10 +31,10 @@ int main(int argc, char *argv[]) {
 
   int fd = pcap_get_selectable_fd(ppcap);
 
-  struct timespec curr,start;
+  struct timespec curr;
   struct pcap_pkthdr *hdr = NULL;
   uint64_t inline_stp_n, curr_n, total_nb=0, total_size=0; 
-  float delta_m, total_m;
+  float delta_m, total_m=0;
   uint16_t n, u16HeaderLen,inline_len,inline_seq;
   uint8_t *pu8,payload;
 
@@ -58,11 +58,6 @@ int main(int argc, char *argv[]) {
         inline_len = (((pay_hdr_t *)pu8)->len); 
         inline_stp_n = (((pay_hdr_t *)pu8)->stp_n);
   
-        if (inline_seq == 0) {
-	  start.tv_sec = curr.tv_sec; 
-	  start.tv_nsec = curr.tv_nsec; 
-	}
-
         curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
         delta_m = (float)(curr_n - inline_stp_n) / 1000000;
         
@@ -70,10 +65,11 @@ int main(int argc, char *argv[]) {
         printf("stamp(%ld)\n",inline_stp_n);
         printf("delta mil(%.03f)\n",delta_m);
   
-	if (inline_seq != 0) { 
-	  total_m = (float)(curr_n - (start.tv_nsec + (start.tv_sec * 1000000000L))) / 1000000 ;
+	if (inline_seq > 1) { 
+	  total_m += delta_m;
+	  total_size += inline_len;
           printf("total mil[%.03f]\n",total_m);
-	  printf("Mbitps(%.02f)\n",total_size / (1000*total_m));
+	  printf("Mbitps(%.02f)\n",(total_size / (1000*total_m)));
 	}
 
 	printf("total nb(%ld)\n",total_nb);

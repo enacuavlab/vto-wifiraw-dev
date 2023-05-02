@@ -12,12 +12,13 @@ int main(int argc, char *argv[]) {
   uint16_t param_pktnb  = 2000;
   uint16_t param_pktlen = 1441;
   uint16_t param_ndelay = 800;
+  uint8_t param_bitrate = 0x5; // 0x0, 0x3  -> 0x05
 
   setpriority(PRIO_PROCESS, 0, -10);
 
   uint8_t portId = 5;
 
-  uint8_t buffer[PKT_SIZE_0], *ieee_hdr = ieee_hdr_data;
+  uint8_t buffer[PKT_SIZE_0], *ieee_hdr = ieee_hdr_data, *radiotap_hdr = uint8_taRadiotapHeader;
   uint8_t *ppay, *pu8 = buffer;
   pay_hdr_t *phead;
 
@@ -29,6 +30,7 @@ int main(int argc, char *argv[]) {
   if (param_pktlen >  DATA_SIZE) exit(-1);
 
   memset(buffer, 0, sizeof (buffer));
+  radiotap_hdr[27] = param_bitrate;
   memcpy(buffer, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
   ieee_hdr[9] = portId; // Set in receiver address
   memcpy(buffer + sizeof(uint8_taRadiotapHeader), ieee_hdr, sizeof(ieee_hdr_data));
