@@ -7,8 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-static uint8_t uint8_taRadiotapHeader[] = 
-{
+static uint8_t uint8_taRadiotapHeader[] =  {
 	0x00, 0x00, // <-- radiotap version
 	0x1c, 0x00, // <- radiotap header length
 	0x6f, 0x08, 0x08, 0x00, // <-- bitmap
@@ -28,7 +27,7 @@ static uint8_t ieee_hdr_data[] = {
         0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Receiver MAC 
         0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Transmitter MAC
         0x66, 0x55, 0x44, 0x33, 0x22, 0x11, // Destination MAC
-        0x10, 0x86                          // Sequence control
+        0x10, 0x86,                          // Sequence control
 };
 
 typedef struct {
@@ -41,8 +40,8 @@ typedef struct {
 //#define PKT_SIZE 2311 // 802.11 max packet size will crash the system
 
 // From gstreamer rtph264pay mtu=1400
-//#define DATA_SIZE     1400
-#define DATA_SIZE       1442
+#define DATA_SIZE     1400
+//#define DATA_SIZE       1442
 // Full 802.11 transmitted packet with headers, payload
 #define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
 // and CRC32

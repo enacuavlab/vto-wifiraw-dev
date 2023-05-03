@@ -1,2 +1,4 @@
 If debuging with wireshark, then disable all protocols, and keep 802.11 ....
 (ANALYSE -> Enabled protocol -> 802.11)
+
+Protocol should be 802.11 (and not LLC)
