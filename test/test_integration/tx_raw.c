@@ -30,6 +30,8 @@ sudo ./tx_raw 127.0.0.1:5000 $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h2
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+  setpriority(PRIO_PROCESS, 0, -10);
+
   char node[20],addr_str[20];
   uint16_t port=0;
 
@@ -39,25 +41,18 @@ int main(int argc, char *argv[]) {
 
   uint8_t  param_portid = 5;
 
-  setpriority(PRIO_PROCESS, 0, -10);
-
-  uint16_t headerSize0 = sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_llc) + sizeof(ieee_hdr_data); 
-  uint16_t headerSize1 = headerSize0 + sizeof(pay_hdr_t);            
-
   uint8_t *pu8;
   uint8_t cpt_d=0, fec_d = FEC_D;
   uint32_t len_d[fec_d];
-  uint8_t buf_d[fec_d][28 + 24 + 4 + 2 + 1400 + 12];
+  uint8_t buf_d[fec_d][PKT_SIZE_0];
   for (uint8_t i=0;i<fec_d;i++) {
     len_d[i] = 0;
     pu8 = buf_d[i];
-    memset(pu8, 0, sizeof (28 + 24 + 4 + 2 + 1400 +12 ));
+    memset(pu8, 0, PKT_SIZE_0);
     memcpy(pu8, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
     pu8 += sizeof(uint8_taRadiotapHeader);
+    ieee_hdr_data[9] = param_portid;
     memcpy(pu8, ieee_hdr_data, sizeof(ieee_hdr_data));
-    pu8 += sizeof(ieee_hdr_data);
-    memcpy(pu8, ieee_hdr_llc, sizeof(ieee_hdr_llc));
-    buf_d[i][32] = param_portid;
   }
 
   uint16_t fd_in = STDIN_FILENO;
@@ -83,14 +78,19 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = htons( ETH_P_ALL );
   if (-1 == bind(fd_out, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
+  uint16_t offset0 = sizeof(uint8_taRadiotapHeader)+sizeof(ieee_hdr_data);
+  uint16_t offset1 = offset0 + sizeof(pay_hdr_t);
+
   struct timeval timeout;
   struct timespec stp;
-  uint64_t stp_n, delay_n=0;
+  uint64_t stp_n;
   uint32_t inl, data_size = 1400;
-  uint16_t offset,len,seq=0,wait_u,delta_u,r;
+  uint16_t offset,len,seq=1,r;
   uint8_t di;
   uint8_t *ppay;
   pay_hdr_t *phead;
+
+  build_crc32_table();
 
   for(;;) {
     fd_set readset;
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     timeout.tv_sec = 1;
     r = select(fd_in + 1, &readset, NULL, NULL, &timeout);
     if (r > 0) {     
-      if (len_d[cpt_d] == 0) offset = 58 +12 ; // max limit be carreful to not overshoot buffer
+      if (len_d[cpt_d] == 0) offset = offset1 ; // max limit be carreful to not overshoot buffer
       pu8 = buf_d[cpt_d];
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
@@ -119,24 +119,33 @@ int main(int argc, char *argv[]) {
 
 	    len = len_d[di] ; len_d[di] = 0; di ++;
 
+            phead = (pay_hdr_t *)(pu8 + offset0);
+            phead->seq = seq;
+            phead->len = len;
+
             clock_gettime( CLOCK_MONOTONIC, &stp);
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
-	    phead = (pay_hdr_t *)(pu8 + 58);
-            phead->seq = seq;
-            phead->len = len;
             phead->stp_n = stp_n;
-
+/*
+	    uint32_t dataLen = sizeof(pay_hdr_t) + len;
+	    const uint8_t *s = &pu8[offset0];  // Do not include radiotap header
+	    printf("(%x)(%x)\n",s[0],s[1]);
+            uint32_t crc=0xFFFFFFFF;
+            for(uint32_t i=0;i<dataLen;i++) {
+              uint8_t ch=s[i];
+              uint32_t t=(ch^crc)&0xFF;
+              crc=(crc>>8)^crc32_table[t];
+            }
+	    printf("(%d)(%lu)\n",seq,(unsigned long)(~crc));
+*/
             r = write(fd_out, pu8, PKT_SIZE_0);
             if (r != PKT_SIZE_0) exit(-1);
 
-	    ppay = (pu8 + 58 + 12);
+            ppay = (pu8 + offset1);
             write(STDOUT_FILENO, ppay, len);
 
-	    delta_u = (stp_n - delay_n)/1000;
-	    if (delta_u > 400) wait_u = 0;
-	    delay_n = stp_n;
-	    usleep(wait_u);
+	    usleep(800);
 	  }
 	}
 	cpt_d = 0; di = 0;

@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   setpriority(PRIO_PROCESS, 0, -10);
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x00000027 }, // Ldb = 0x30, load one byte at position 0x27 (offset = 39) to A
+    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -55,11 +55,15 @@ int main(int argc, char *argv[]) {
 
   struct timespec curr;
   uint64_t stp_n;
-  uint16_t offset, u16HeaderLen,len,seq,n;
+  uint32_t dataLen;
+  uint16_t offset,u16HeaderLen,len,seq,n;
   uint8_t *pu8, *ppay;
   pay_hdr_t *phead;
 
-  uint8_t packetBuffer[28 + 24 + 4 + 2 + 1400 + 12 + 32];
+  uint32_t crc, crc_rx;
+  build_crc32_table();
+
+  uint8_t packetBuffer[PKT_SIZE_1];
   for(;;) { 
     fd_set readset;
     FD_ZERO(&readset);
@@ -78,15 +82,29 @@ int main(int argc, char *argv[]) {
 	  pu8 = packetBuffer; 
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
+          offset = u16HeaderLen + sizeof(ieee_hdr_data);
 
-	  offset = u16HeaderLen + 30;
 	  phead = (pay_hdr_t *)(pu8 + offset);
           seq = phead->seq;
           len = phead->len;
           stp_n = phead->stp_n;
+/*
+	  dataLen = sizeof(pay_hdr_t) + len;
+          const uint8_t *s = &packetBuffer[offset]; // Do not include radiotap header
+	  printf("(%x)(%x)\n",s[0],s[1]);
+          crc=0xFFFFFFFF;
+          for(uint32_t i=0;i<dataLen;i++) {
+            uint8_t ch=s[i];
+            uint32_t t=(ch^crc)&0xFF;
+            crc=(crc>>8)^crc32_table[t];
+          }
 
-	  offset += sizeof(pay_hdr_t);
-	  ppay = (pu8 + offset);
+          memcpy(&crc_rx, &packetBuffer[(u16HeaderLen + dataLen)], sizeof(crc_rx));
+
+          printf("(%d)(%lu)(%lu)\n",seq,(unsigned long)(crc_rx),(unsigned long)(~crc));
+*/
+
+	  ppay = (pu8 + offset + sizeof(pay_hdr_t));
 	  write(STDOUT_FILENO, ppay, len);
         }
       }
