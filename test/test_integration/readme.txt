@@ -1,9 +1,28 @@
 -------------------------------------------------------------------------------
-Simple echo test:
+Test simple echo:
 ----------------
 sudo ./rx_raw $node
 
 sudo ./tx_raw $node
+
+----------------
+echo "hello" | ./tx_raw $node
+
+
+-------------------------------------------------------------------------------
+Test file transfert: 
+-------------------
+openssl rand 8 > /tmp/1B.log
+openssl rand 512 > /tmp/512B.log
+openssl rand 1024 > /tmp/1K.log
+openssl rand 10240 > /tmp/10K.log
+openssl rand 102400 > /tmp/100K.log
+(openssl rand 204800 > /tmp/200K.log)
+
+cat /tmp/100K.log | sudo ./tx_raw $node  &>/dev/null
+
+sudo ./rx_raw $node > /tmp/100K_rx.log
+diff /tmp/100K.log /tmp/100K_rx.log
 
 
 -------------------------------------------------------------------------------

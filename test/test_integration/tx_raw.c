@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <termios.h>
+#include <fcntl.h>
 
 #include "inject_capt.h"
 
@@ -55,8 +57,17 @@ int main(int argc, char *argv[]) {
     memcpy(pu8, ieee_hdr_data, sizeof(ieee_hdr_data));
   }
 
-  uint16_t fd_in = STDIN_FILENO;
-  if (port!=0) {
+  uint16_t fd_in; 
+  if (port==0) { 
+    fd_in = STDIN_FILENO;       /* Turn off canonical processing on stdin*/
+    static struct termios mode;
+    tcgetattr( fd_in, &mode);
+    mode.c_lflag &= ~(ECHO | ICANON);
+    mode.c_cc[VMIN] = 1;
+    mode.c_cc[VTIME] = 0;
+    tcsetattr( fd_in, TCSANOW, &mode);
+    fcntl(fd_in, F_SETFL, O_NONBLOCK);
+  } else {
     if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
@@ -92,17 +103,59 @@ int main(int argc, char *argv[]) {
 
   build_crc32_table();
 
+  int stdin_copy = dup(fd_in);
+
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
     FD_SET(fd_in, &readset);
-    timeout.tv_sec = 1;
+    timeout.tv_sec = 1; timeout.tv_usec = 0;
     r = select(fd_in + 1, &readset, NULL, NULL, &timeout);
+    printf("select (%d)\n",r);
+    if (r > 0) {     
+      if (len_d[cpt_d] == 0) offset = offset1 ; // max limit be carreful to not overshoot buffer
+      pu8 = buf_d[cpt_d];
+      ppay = (pu8 + offset);
+      printf("before read (%d)\n",(data_size - len_d[cpt_d] ));fflush(stdout);
+      inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
+      if (inl ==  0) {
+        close(fd_in);
+	fd_in = stdin_copy;
+	continue;
+      }
+      printf("read (%d)\n",inl);
+      len_d[cpt_d] += inl;
+      offset += inl;
+      if (len_d[cpt_d] == data_size) cpt_d++;
+      if (cpt_d == fec_d) r = 0;
+    }
+    if (r == 0) {
+      if (len_d[0] > 0) {
+	di = 0;
+        while (di < fec_d) {
+	  if (len_d[di] == 0) di = fec_d;
+	  else {
+            pu8 = buf_d[di];
+	    len = len_d[di] ; len_d[di] = 0; di ++;
+	    printf("write len (%d)\n",len);
+	  }
+	}
+	cpt_d=0;
+	if (seq == 65535)  seq = 1;  else seq++;
+      }
+    }
+    printf("[%d]\n",r);
+  }
+}
+
+/*
     if (r > 0) {     
       if (len_d[cpt_d] == 0) offset = offset1 ; // max limit be carreful to not overshoot buffer
       pu8 = buf_d[cpt_d];
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
+      printf("(%d)\n",inl);
+      if (inl==0) continue;
       if (inl < 0) continue;
       len_d[cpt_d] += inl;
       offset += inl;
@@ -127,18 +180,6 @@ int main(int argc, char *argv[]) {
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
             phead->stp_n = stp_n;
-/*
-	    uint32_t dataLen = sizeof(pay_hdr_t) + len;
-	    const uint8_t *s = &pu8[offset0];  // Do not include radiotap header
-	    printf("(%x)(%x)\n",s[0],s[1]);
-            uint32_t crc=0xFFFFFFFF;
-            for(uint32_t i=0;i<dataLen;i++) {
-              uint8_t ch=s[i];
-              uint32_t t=(ch^crc)&0xFF;
-              crc=(crc>>8)^crc32_table[t];
-            }
-	    printf("(%d)(%lu)\n",seq,(unsigned long)(~crc));
-*/
             r = write(fd_out, pu8, PKT_SIZE_0);
             if (r != PKT_SIZE_0) exit(-1);
 
@@ -154,4 +195,4 @@ int main(int argc, char *argv[]) {
     }
   }
 }
-
+*/
