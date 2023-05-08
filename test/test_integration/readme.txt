@@ -6,7 +6,7 @@ sudo ./rx_raw $node
 sudo ./tx_raw $node
 
 ----------------
-echo "hello" | ./tx_raw $node
+echo "hello" | sudo ./tx_raw $node
 
 
 -------------------------------------------------------------------------------
@@ -24,6 +24,9 @@ cat /tmp/100K.log | sudo ./tx_raw $node  &>/dev/null
 sudo ./rx_raw $node > /tmp/100K_rx.log
 diff /tmp/100K.log /tmp/100K_rx.log
 
+note:
+----
+This test can check if TX NOACK is set or not. If not the driver "might" resend the packets.
 
 -------------------------------------------------------------------------------
 Unitest:

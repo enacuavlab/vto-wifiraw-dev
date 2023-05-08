@@ -101,10 +101,6 @@ int main(int argc, char *argv[]) {
   uint8_t *ppay;
   pay_hdr_t *phead;
 
-  build_crc32_table();
-
-  int stdin_copy = dup(fd_in);
-
   for(;;) {
     fd_set readset;
     FD_ZERO(&readset);
@@ -119,10 +115,10 @@ int main(int argc, char *argv[]) {
       printf("before read (%d)\n",(data_size - len_d[cpt_d] ));fflush(stdout);
       inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
       if (inl ==  0) {
-        close(fd_in);
-	fd_in = stdin_copy;
-	continue;
+        if (len_d[0] > 0) r=0;
+        else exit(-1); // TODO select returning data to read, but no data available to read (close (stdin)
       }
+      if (inl < 0) continue;
       printf("read (%d)\n",inl);
       len_d[cpt_d] += inl;
       offset += inl;
@@ -137,6 +133,22 @@ int main(int argc, char *argv[]) {
 	  else {
             pu8 = buf_d[di];
 	    len = len_d[di] ; len_d[di] = 0; di ++;
+
+            phead = (pay_hdr_t *)(pu8 + offset0);
+            phead->seq = seq;
+            phead->len = len;
+
+            clock_gettime( CLOCK_MONOTONIC, &stp);
+            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+
+            phead->stp_n = stp_n;
+            r = write(fd_out, pu8, PKT_SIZE_0);
+            if (r != PKT_SIZE_0) exit(-1);
+
+            ppay = (pu8 + offset1);
+            write(STDOUT_FILENO, ppay, len);
+
+	    usleep(800);
 	    printf("write len (%d)\n",len);
 	  }
 	}
