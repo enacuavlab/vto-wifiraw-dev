@@ -32,6 +32,8 @@ sudo ./tx_raw 127.0.0.1:5000 $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h2
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+  uint32_t param_data_size = 1400;
+
   setpriority(PRIO_PROCESS, 0, -10);
 
   char node[20],addr_str[20];
@@ -63,8 +65,8 @@ int main(int argc, char *argv[]) {
     static struct termios mode;
     tcgetattr( fd_in, &mode);
     mode.c_lflag &= ~(ECHO | ICANON);
-    mode.c_cc[VMIN] = 1;
-    mode.c_cc[VTIME] = 0;
+    mode.c_cc[VMIN] = param_data_size;
+    mode.c_cc[VTIME] = 10;
     tcsetattr( fd_in, TCSANOW, &mode);
     fcntl(fd_in, F_SETFL, O_NONBLOCK);
   } else {
@@ -95,7 +97,7 @@ int main(int argc, char *argv[]) {
   struct timeval timeout;
   struct timespec stp;
   uint64_t stp_n;
-  uint32_t inl, data_size = 1400;
+  uint32_t inl;
   uint16_t offset,len,seq=1,r;
   uint8_t di;
   uint8_t *ppay;
@@ -107,22 +109,19 @@ int main(int argc, char *argv[]) {
     FD_SET(fd_in, &readset);
     timeout.tv_sec = 1; timeout.tv_usec = 0;
     r = select(fd_in + 1, &readset, NULL, NULL, &timeout);
-    printf("select (%d)\n",r);
     if (r > 0) {     
       if (len_d[cpt_d] == 0) offset = offset1 ; // max limit be carreful to not overshoot buffer
       pu8 = buf_d[cpt_d];
       ppay = (pu8 + offset);
-      printf("before read (%d)\n",(data_size - len_d[cpt_d] ));fflush(stdout);
-      inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
+      inl = read(fd_in, ppay, param_data_size - len_d[cpt_d] );   // fill pkts with read input
       if (inl ==  0) {
         if (len_d[0] > 0) r=0;
         else exit(-1); // TODO select returning data to read, but no data available to read (close (stdin)
       }
       if (inl < 0) continue;
-      printf("read (%d)\n",inl);
       len_d[cpt_d] += inl;
       offset += inl;
-      if (len_d[cpt_d] == data_size) cpt_d++;
+      if (len_d[cpt_d] == param_data_size) cpt_d++;
       if (cpt_d == fec_d) r = 0;
     }
     if (r == 0) {
@@ -146,65 +145,15 @@ int main(int argc, char *argv[]) {
             if (r != PKT_SIZE_0) exit(-1);
 
             ppay = (pu8 + offset1);
-            write(STDOUT_FILENO, ppay, len);
+//            write(STDOUT_FILENO, ppay, len);
+            printf("(%d)(%d)(%ld)\n",seq,len,stp_n);
 
 	    usleep(800);
-	    printf("write len (%d)\n",len);
 	  }
 	}
 	cpt_d=0;
 	if (seq == 65535)  seq = 1;  else seq++;
       }
     }
-    printf("[%d]\n",r);
   }
 }
-
-/*
-    if (r > 0) {     
-      if (len_d[cpt_d] == 0) offset = offset1 ; // max limit be carreful to not overshoot buffer
-      pu8 = buf_d[cpt_d];
-      ppay = (pu8 + offset);
-      inl = read(fd_in, ppay, data_size - len_d[cpt_d] );   // fill pkts with read input
-      printf("(%d)\n",inl);
-      if (inl==0) continue;
-      if (inl < 0) continue;
-      len_d[cpt_d] += inl;
-      offset += inl;
-      if (len_d[cpt_d] == data_size) cpt_d++;
-      if (cpt_d == fec_d) r = 0;
-    }
-    if (r == 0) {
-      if (len_d[0] > 0) {
-        di = 0;
-        while (di < fec_d) {
-	  if (len_d[di] == 0) di = fec_d;
-	  else {
-            pu8 = buf_d[di];
-
-	    len = len_d[di] ; len_d[di] = 0; di ++;
-
-            phead = (pay_hdr_t *)(pu8 + offset0);
-            phead->seq = seq;
-            phead->len = len;
-
-            clock_gettime( CLOCK_MONOTONIC, &stp);
-            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-
-            phead->stp_n = stp_n;
-            r = write(fd_out, pu8, PKT_SIZE_0);
-            if (r != PKT_SIZE_0) exit(-1);
-
-            ppay = (pu8 + offset1);
-            write(STDOUT_FILENO, ppay, len);
-
-	    usleep(800);
-	  }
-	}
-	cpt_d = 0; di = 0;
-        if (seq == 65535)  seq = 0;  else seq++;
-      }
-    }
-  }
-}
-*/

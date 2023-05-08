@@ -105,7 +105,9 @@ int main(int argc, char *argv[]) {
 */
 
 	  ppay = (pu8 + offset + sizeof(pay_hdr_t));
-	  write(STDOUT_FILENO, ppay, len);
+//	  write(STDOUT_FILENO, ppay, len);
+   
+	  printf("(%d)(%d)(%ld)\n",seq,len,stp_n);
         }
       }
     }

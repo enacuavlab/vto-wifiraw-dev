@@ -15,18 +15,24 @@ Test file transfert:
 openssl rand 8 > /tmp/1B.log
 openssl rand 512 > /tmp/512B.log
 openssl rand 1024 > /tmp/1K.log
-openssl rand 10240 > /tmp/10K.log
-openssl rand 102400 > /tmp/100K.log
-(openssl rand 204800 > /tmp/200K.log)
+=> OK for  MCS 5
 
-cat /tmp/100K.log | sudo ./tx_raw $node  &>/dev/null
+openssl rand 10240 > /tmp/10K.log 
+openssl rand 102400 > /tmp/100K.log
+openssl rand 1024000 > /tmp/1G.log
+openssl rand 10240000 > /tmp/10G.log
+=> OK for MCS 4 (missing packet above) 
+10 Gb in 8 secs
+
+cat /tmp/100K.log | sudo ./tx_raw $node > /tmp/100K_tx.log 
+diff /tmp/100K.log /tmp/100K_tx.log
 
 sudo ./rx_raw $node > /tmp/100K_rx.log
 diff /tmp/100K.log /tmp/100K_rx.log
 
 note:
 ----
-This test can check if TX NOACK is set or not. If not the driver "might" resend the packets.
+This test can also check if TX NOACK is set or not. So the driver "might" resend the packets.
 
 -------------------------------------------------------------------------------
 Unitest:
