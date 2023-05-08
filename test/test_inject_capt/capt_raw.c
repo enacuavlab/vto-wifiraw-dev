@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   uint32_t port = 5;
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
+    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2f (offset = 47) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 

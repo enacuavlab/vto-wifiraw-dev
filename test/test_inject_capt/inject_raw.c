@@ -10,7 +10,7 @@
 int main(int argc, char *argv[]) {
 
   uint16_t param_pktnb  = 2000;
-  uint16_t param_pktlen = 1441;
+  uint16_t param_pktlen = 1400;
   uint16_t param_ndelay = 800;
   uint8_t param_bitrate = 0x5; // 0x0, 0x3  -> 0x05
   uint8_t param_portid = 5;
