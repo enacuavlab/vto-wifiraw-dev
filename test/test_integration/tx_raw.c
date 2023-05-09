@@ -143,8 +143,10 @@ int main(int argc, char *argv[]) {
             r = write(fd_out, pu8, PKT_SIZE_0);
             if (r != PKT_SIZE_0) exit(-1);
 
-            ppay = (pu8 + offset1);
-            write(STDOUT_FILENO, ppay, len);
+            if (port==0) {
+	      ppay = (pu8 + offset1);
+              write(STDOUT_FILENO, ppay, len);
+	    }
 
 	    usleep(800);
 	  }

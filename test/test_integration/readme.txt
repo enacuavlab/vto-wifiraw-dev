@@ -41,7 +41,7 @@ This test can also check if TX NOACK is set or not. So the driver "might" resend
 -------------------------------------------------------------------------------
 Test streaming with fdsink/stdin, stdout/fdsrc :
 ------------------------------------------------
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! fdsink | pv -r | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! fdsink | pv -r | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 [1,14MiB/s]
 
 sudo ./rx_raw $node | pv -r | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
@@ -52,13 +52,14 @@ Issue: Image blurred, RTP needed ?
 -------------------------------------------------------------------------------
 Test streaming UDP with udpsink/udp, udp/udpsrc :
 ---------------------------------------------
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! udpsink port=5000 host=127.0.0.1
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! udpsink port=5000 host=127.0.0.1
+
+(sudo tcpdump -i lo -n udp port 5000)
+(UDP, length 18355)
 
 sudo ./tx_raw 127.0.0.1:5000 $node
 
 sudo ./rx_raw 127.0.0.1:6000 $node
-
-(sudo tcpdump -i lo -n udp port 6000)
 
 gst-launch-1.0  udpsrc port=6000 ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
@@ -67,15 +68,19 @@ Issue: Image blurred, RTP needed ?
 -------------------------------------------------------------------------------
 Test streaming RTP with udpsink/udp, udp/udpsrc :
 ---------------------------------------------
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1)
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1
+
+(sudo tcpdump -i lo -n udp port 5000)
+(UDP, length 1400)
 
 sudo ./tx_raw 127.0.0.1:5000 $node
 
 sudo ./rx_raw 127.0.0.1:6000 $node
 
-(sudo tcpdump -i lo -n udp port 6000)
 
-gst-launch-1.0 -v udpsrc port=6000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink)
+gst-launch-1.0  udpsrc port=6000 ! application/x-rtp !  rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+(gst-launch-1.0 -v udpsrc port=6000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink)
 
 Issue: No image
 
