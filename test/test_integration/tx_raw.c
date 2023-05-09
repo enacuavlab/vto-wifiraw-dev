@@ -32,13 +32,12 @@ sudo ./tx_raw 127.0.0.1:5000 $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h2
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
-  uint32_t param_data_size = 1400;
+  uint32_t param_data_size = DATA_SIZE;
 
   setpriority(PRIO_PROCESS, 0, -10);
 
   char node[20],addr_str[20];
   uint16_t port=0;
-
   if ((argc==1)||(argc>3)) exit(-1);
   if (argc>1) strcpy(node,argv[argc - 1]);
   if (argc==3) { char *ch=strtok(argv[1],":"); strcpy(addr_str,&ch[0]); port=atoi(strtok(NULL,":")); }
@@ -145,8 +144,7 @@ int main(int argc, char *argv[]) {
             if (r != PKT_SIZE_0) exit(-1);
 
             ppay = (pu8 + offset1);
-//            write(STDOUT_FILENO, ppay, len);
-            printf("(%d)(%d)(%ld)\n",seq,len,stp_n);
+            write(STDOUT_FILENO, ppay, len);
 
 	    usleep(800);
 	  }

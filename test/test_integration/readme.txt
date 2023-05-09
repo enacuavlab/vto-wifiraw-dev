@@ -24,28 +24,67 @@ openssl rand 10240000 > /tmp/10G.log
 => OK for MCS 4 (missing packet above) 
 10 Gb in 8 secs
 
-cat /tmp/100K.log | sudo ./tx_raw $node > /tmp/100K_tx.log 
-diff /tmp/100K.log /tmp/100K_tx.log
+cat /tmp/10G.log | pv -r | sudo ./tx_raw $node > /tmp/10G_tx.log 
+[1,32MiB/s]
 
-sudo ./rx_raw $node > /tmp/100K_rx.log
-diff /tmp/100K.log /tmp/100K_rx.log
+diff /tmp/10G.log /tmp/10G_tx.log
+
+sudo ./rx_raw $node | pv -r > /tmp/10G_rx.log
+[1,32MiB/s]
+
+diff /tmp/10G.log /tmp/10G_rx.log
 
 note:
-----
 This test can also check if TX NOACK is set or not. So the driver "might" resend the packets.
 
--------------------------------------------------------------------------------
-Unitest:
---------
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000 ! fdsink | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
-
-sudo ./rx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
 -------------------------------------------------------------------------------
+Test streaming with fdsink/stdin, stdout/fdsrc :
+------------------------------------------------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! fdsink | pv -r | sudo ./tx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+[1,14MiB/s]
+
+sudo ./rx_raw $node | pv -r | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+[1,14MiB/s]
+
+Issue: Image blurred, RTP needed ?
+
+-------------------------------------------------------------------------------
+Test streaming UDP with udpsink/udp, udp/udpsrc :
+---------------------------------------------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! udpsink port=5000 host=127.0.0.1
+
+sudo ./tx_raw 127.0.0.1:5000 $node
+
+sudo ./rx_raw 127.0.0.1:6000 $node
+
+(sudo tcpdump -i lo -n udp port 6000)
+
+gst-launch-1.0  udpsrc port=6000 ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+
+Issue: Image blurred, RTP needed ?
+
+-------------------------------------------------------------------------------
+Test streaming RTP with udpsink/udp, udp/udpsrc :
+---------------------------------------------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1)
+
+sudo ./tx_raw 127.0.0.1:5000 $node
+
+sudo ./rx_raw 127.0.0.1:6000 $node
+
+(sudo tcpdump -i lo -n udp port 6000)
+
+gst-launch-1.0 -v udpsrc port=6000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink)
+
+Issue: No image
+
+
+-------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
 
-gst-launch-1.0 -v videotestsrc ! 'video/x-raw,width=1280,height=720,format=NV12,framerate=30/1' ! timeoverlay !  tee name=t ! queue ! x264enc  tune=zerolatency bitrate=5000 speed-preset=superfast ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1 t. ! queue leaky=1 ! decodebin ! videoconvert ! autovideosink sync=false
+gst-launch-1.0 videotestsrc ! 'video/x-raw,width=1280,height=720,format=NV12,framerate=30/1' ! timeoverlay !  tee name=t ! queue ! x264enc  tune=zerolatency bitrate=5000 speed-preset=superfast ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1 t. ! queue leaky=1 ! decodebin ! videoconvert ! autovideosink sync=false
 
 gst-launch-1.0 -v udpsrc port=5000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink
 
@@ -64,6 +103,8 @@ gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay ! 
 
 -------------------------------------------------------------------------------
 DEBUG:
+
+sudo tcpdump -i lo -n udp port 5000
 
 ------
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=5000 ! fdsink | sudo ./tx_raw $node | hexdump 
