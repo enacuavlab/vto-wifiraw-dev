@@ -70,13 +70,19 @@ Test streaming RTP with udpsink/udp, udp/udpsrc :
 ---------------------------------------------
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1
 
+(gst-launch-1.0  udpsrc port=5000 ! application/x-rtp !  rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false)
+
 (sudo tcpdump -i lo -n udp port 5000)
-(UDP, length 1400)
+(UDP, length range 14 to 1400)
 
 sudo ./tx_raw 127.0.0.1:5000 $node
 
 sudo ./rx_raw 127.0.0.1:6000 $node
 
+(sudo tcpdump -i lo -n udp port 6000)
+(UDP, length fixed 1400)
+
+(socat udp-listen:5000,reuseaddr,fork udp:localhost:6000)
 
 gst-launch-1.0  udpsrc port=6000 ! application/x-rtp !  rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
