@@ -68,7 +68,7 @@ Issue: Image blurred, RTP needed ?
 -------------------------------------------------------------------------------
 Test streaming RTP with udpsink/udp, udp/udpsrc :
 ---------------------------------------------
-gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  x264enc tune=zerolatency byte-stream=true bitrate=2500 ! rtph264pay mtu=1400 ! udpsink port=5000 host=127.0.0.1
 
 (gst-launch-1.0  udpsrc port=5000 ! application/x-rtp !  rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false)
 
@@ -84,7 +84,8 @@ sudo ./rx_raw 127.0.0.1:6000 $node
 
 (socat udp-listen:5000,reuseaddr,fork udp:localhost:6000)
 
-gst-launch-1.0  udpsrc port=6000 ! application/x-rtp !  rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+gst-launch-1.0 udpsrc port=6000 ! application/x-rtp ! rtph264depay ! h264parse ! queue ! avdec_h264 ! xvimagesink sync=false async=false
+(no videoconvert needed !)
 
 (gst-launch-1.0 -v udpsrc port=6000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink)
 
