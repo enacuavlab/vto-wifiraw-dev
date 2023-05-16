@@ -82,15 +82,15 @@ sudo ./rx_raw 127.0.0.1:6000 $node
 (sudo tcpdump -i lo -n udp port 6000)
 (UDP, length fixed 1400)
 
-(socat udp-listen:5000,reuseaddr,fork udp:localhost:6000)
+(socat -b 64000 UDP4-RECVFROM:5000,fork UDP4-SENDTO:localhost:6000)
+(socat -b 64000 udp-listen:5000,reuseaddr,fork udp:localhost:6000)
 
-gst-launch-1.0 udpsrc port=6000 ! application/x-rtp ! rtph264depay ! h264parse ! queue ! avdec_h264 ! xvimagesink sync=false async=false
-(no videoconvert needed !)
-
+gst-launch-1.0 udpsrc port=6000 ! application/x-rtp, encoding-name=H264, payload=96 ! rtpjitterbuffer ! rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
+(gst-launch-1.0 udpsrc port=6000 ! application/x-rtp ! rtph264depay ! h264parse ! queue ! avdec_h264 ! xvimagesink sync=false async=false)
 (gst-launch-1.0 -v udpsrc port=6000 ! "application/x-rtp, media=(string)video, clock-rate=(int)90000, encoding-name=(string)H264, payload=(int)96" ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink)
 
 Issue: No image
-
+Payloader is needed to fit H264 data in MTU
 
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
