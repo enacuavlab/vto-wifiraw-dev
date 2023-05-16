@@ -117,7 +117,7 @@ int main(int argc, char *argv[]) {
       pu8 = buf_udp;
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, udp_size - offset );   // fill pkts with read input
-      printf("[%d]\n",inl);
+      printf("\n[%d]",inl);fflush(stdout);
       len_udp = inl;
       len = 0;
       if (inl > 0) {
@@ -129,10 +129,8 @@ int main(int argc, char *argv[]) {
           ieee_hdr_data[9] = param_portid;
           memcpy(pu8 + sizeof(uint8_taRadiotapHeader), ieee_hdr_data, sizeof(ieee_hdr_data));
          
-	  printf("(%d)(%d)(%d)\n",len,len_udp,len_udp % DATA_SIZE);
-	   
-	  if ((len_udp % DATA_SIZE) > 0) len = DATA_SIZE;
-	  else len -= DATA_SIZE;
+	  if (len_udp > DATA_SIZE) len = DATA_SIZE;
+	  else len = len_udp;
 
           phead = (pay_hdr_t *)(pu8 + offset0);
           phead->seq = seq;
@@ -150,7 +148,7 @@ int main(int argc, char *argv[]) {
             write(STDOUT_FILENO, ppay, len);
 	  }
 
-	  printf("(%d)\n",len);
+	  printf("(%ld)",stp_n);fflush(stdout);
 	  len_udp -= len;
 
 	  usleep(800);
