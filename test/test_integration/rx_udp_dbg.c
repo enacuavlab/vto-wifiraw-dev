@@ -77,10 +77,15 @@ int main(int argc, char *argv[]) {
   addr_out.sin_port = htons(port_out);
   addr_out.sin_addr.s_addr = inet_addr(addr_str);
 
+  struct timespec curr;
   ssize_t len_in, len_out;
-  uint16_t len = 0, ret;
-  uint8_t udp_in[DATA_SIZE];
+  uint16_t len = 0, ret, u16HeaderLen, pos, seq, offset = 0;
+  uint8_t udp_in[PKT_SIZE_1_IN];
   uint8_t udp_out[UDP_SIZE];
+  uint8_t *ppay;
+
+  uint64_t stp_n;
+  pay_hdr_t *phead;
 
   for(;;) {
     fd_set readset;
@@ -89,15 +94,29 @@ int main(int argc, char *argv[]) {
     ret = select(fd_in + 1, &readset, NULL, NULL, NULL);
     if(FD_ISSET(fd_in, &readset)) {  
       if ( ret == 1 ) {
-        len_in = read(fd_in, udp_in, DATA_SIZE);
-        printf("read(%ld)\n",len_in);
+        len_in = read(fd_in, udp_in, PKT_SIZE_1_IN);
+        printf("read(%ld)\n",len_in);fflush(stdout);
         if (len_in > 0) {
-          memcpy(udp_out + len , udp_in, len_in);
-          len += len_in;
-          if (len_in < DATA_SIZE) {
-            len_out = sendto(fd_out, udp_out, len, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
-            printf("sendto(%ld)\n",len_out);
-    	    len = 0;
+
+          clock_gettime( CLOCK_MONOTONIC, &curr);
+          u16HeaderLen = (udp_in[2] + (udp_in[3] << 8)); // variable radiotap header size
+          pos = u16HeaderLen + sizeof(ieee_hdr_data);
+ 
+	  phead = (pay_hdr_t *)(udp_in + pos);
+          seq = phead->seq;
+          len = phead->len;
+          stp_n = phead->stp_n;
+
+	  printf("(%d)(%d)\n",seq,len);fflush(stdout);
+
+	  ppay = (udp_in + pos + sizeof(pay_hdr_t));
+          memcpy(udp_out + offset , ppay, len);
+	  offset += len;
+
+          if (len < DATA_SIZE) {
+            len_out = sendto(fd_out, udp_out, offset, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
+            printf("sendto(%ld)\n",len_out);fflush(stdout);
+    	    offset = 0;
           }
         }
       }

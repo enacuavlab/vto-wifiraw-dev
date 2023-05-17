@@ -1,7 +1,7 @@
 CPPFLAGS=-Wall -D _GNU_SOURCE -g
 LDFLAGS=-lpcap 
 
-all: tx_udp_dbg rx_udp_dbg  #tx_dbg rx_dbg # tx_udp rx_udp #tx_raw rx_raw
+all: tx_udp_dbg rx_udp_dbg # tx_dbg rx_dbg # tx_udp rx_udp #tx_raw rx_raw
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
