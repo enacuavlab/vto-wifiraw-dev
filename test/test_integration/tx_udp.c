@@ -117,7 +117,8 @@ int main(int argc, char *argv[]) {
       pu8 = buf_udp;
       ppay = (pu8 + offset);
       inl = read(fd_in, ppay, udp_size - offset );   // fill pkts with read input
-      printf("\n[%d]",inl);fflush(stdout);
+      if (seq != 1) printf("\n");
+      printf("[%d]",inl);fflush(stdout);
       len_udp = inl;
       len = 0;
       if (inl > 0) {

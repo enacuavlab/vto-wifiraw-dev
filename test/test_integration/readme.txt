@@ -57,9 +57,9 @@ gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 !
 (sudo tcpdump -i lo -n udp port 5000)
 (UDP, length 18355)
 
-sudo ./tx_raw 127.0.0.1:5000 $node
+sudo ./tx_udp 127.0.0.1:5000 $node
 
-sudo ./rx_raw 127.0.0.1:6000 $node
+sudo ./rx_udp 127.0.0.1:6000 $node
 
 gst-launch-1.0  udpsrc port=6000 ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
 
