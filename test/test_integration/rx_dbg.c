@@ -36,18 +36,16 @@ int main(int argc, char *argv[]) {
   uint16_t len = 0;
   uint8_t udp_in[DATA_SIZE];
   uint8_t udp_out[UDP_SIZE];
-  uint8_t *pu8 = udp_out;
 
   for(;;) {
     len_in = read(fd_in, udp_in, DATA_SIZE);
     printf("read(%ld)\n",len_in);
     if (len_in > 0) {
-       memcpy(pu8 + len , udp_in, len_in);
-       len += len_in;
+      memcpy(udp_out + len , udp_in, len_in);
+      len += len_in;
       if (len_in < DATA_SIZE) {
-        len_out = sendto(fd_out,pu8,len,0,(struct sockaddr *)&addr_out, sizeof(struct sockaddr));
+        len_out = sendto(fd_out, udp_out, len, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
         printf("sendto(%ld)\n",len_out);
-	pu8 = udp_out;
 	len = 0;
       }
     }

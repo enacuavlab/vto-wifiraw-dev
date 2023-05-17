@@ -34,21 +34,18 @@ int main(int argc, char *argv[]) {
   ssize_t len_in, len_out;
   uint16_t len = 0, offset = 0;
   uint8_t udp_in[65507];
-  uint8_t *pu8;
 
   for(;;) {
     len_in = read(fd_in, udp_in, UDP_SIZE);
     printf("read(%ld)\n",len_in);
-    pu8 = udp_in;
+    offset = 0;
     while (len_in > 0) {
       if (len_in > DATA_SIZE) len = DATA_SIZE;
       else len = len_in;
-      pu8 += offset;
-      len_out = sendto(fd_out,pu8,len,0,(struct sockaddr *)&addr_out, sizeof(struct sockaddr));
+      len_out = sendto(fd_out, udp_in + offset, len ,0 ,(struct sockaddr *)&addr_out, sizeof(struct sockaddr));
       printf("sendto(%ld)\n",len_out);
       offset += len_out;
       len_in -= len_out;
     }
-    offset = 0; len_out = 0;
   }
 }
