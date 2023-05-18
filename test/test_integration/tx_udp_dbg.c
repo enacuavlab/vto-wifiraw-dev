@@ -64,7 +64,6 @@ int main(int argc, char *argv[]) {
 
   for(;;) {
     len_in = read(fd_in, udp_in + offset1, UDP_SIZE - offset1);
-    printf("read(%ld)\n",len_in);fflush(stdout);
     offset = 0;
     while (len_in > 0) {
       if (len_in > DATA_SIZE) len = DATA_SIZE;
@@ -82,7 +81,6 @@ int main(int argc, char *argv[]) {
          
       write(fd_out, udp_in + offset, len + offset1);
 
-      printf("(%d)(%d)\n",seq,len);fflush(stdout);
       offset += len;
       len_in -= len;
 

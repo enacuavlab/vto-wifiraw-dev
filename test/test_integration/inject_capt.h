@@ -44,7 +44,6 @@ typedef struct {
 #define PKT_SIZE_0_IN (50 + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE ) // Estimated variable radiotap header on reception
 #define PKT_SIZE_1_IN (PKT_SIZE_0_IN + sizeof(uint32_t))
 
-// and CRC32
 #define FEC_K 0
 #define FEC_N 8
 #define FEC_D (FEC_N - FEC_K)

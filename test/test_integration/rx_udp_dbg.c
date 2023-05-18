@@ -77,9 +77,14 @@ int main(int argc, char *argv[]) {
   addr_out.sin_port = htons(port_out);
   addr_out.sin_addr.s_addr = inet_addr(addr_str);
 
+  uint32_t totfails = 0;
+
+  uint32_t crc, crc_rx;
+  build_crc32_table();
+
   struct timespec curr;
   ssize_t len_in, len_out;
-  uint16_t len = 0, ret, u16HeaderLen, pos, seq, offset = 0;
+  uint16_t len = 0, ret, u16HeaderLen, pos, seq, offset = 0, datalen;
   uint8_t udp_in[PKT_SIZE_1_IN];
   uint8_t udp_out[UDP_SIZE];
   uint8_t *ppay;
@@ -95,7 +100,6 @@ int main(int argc, char *argv[]) {
     if(FD_ISSET(fd_in, &readset)) {  
       if ( ret == 1 ) {
         len_in = read(fd_in, udp_in, PKT_SIZE_1_IN);
-        printf("read(%ld)\n",len_in);fflush(stdout);
         if (len_in > 0) {
 
           clock_gettime( CLOCK_MONOTONIC, &curr);
@@ -104,21 +108,34 @@ int main(int argc, char *argv[]) {
  
 	  phead = (pay_hdr_t *)(udp_in + pos);
           seq = phead->seq;
-          len = phead->len;
+          len = phead->len;                          // this len do not include pay_hdr_t
           stp_n = phead->stp_n;
 
-	  printf("(%d)(%d)\n",seq,len);fflush(stdout);
-
-	  ppay = (udp_in + pos + sizeof(pay_hdr_t));
-          memcpy(udp_out + offset , ppay, len);
-	  offset += len;
-
-          if (len < DATA_SIZE) {
-            len_out = sendto(fd_out, udp_out, offset, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
-            printf("sendto(%ld)\n",len_out);fflush(stdout);
-    	    offset = 0;
+	  datalen = sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + len; 
+          const uint8_t *s = &udp_in[u16HeaderLen];  // compute CRC32 after radiotap header
+          crc=0xFFFFFFFF;
+          for(uint32_t i=0;i<datalen;i++) {
+            uint8_t ch=s[i];
+            uint32_t t=(ch^crc)&0xFF;
+            crc=(crc>>8)^crc32_table[t];
           }
-        }
+	  memcpy(&crc_rx, &udp_in[len_in - 4], sizeof(crc_rx)); // CRC32 : last four bytes
+								
+          if (~crc != crc_rx) {
+	    totfails ++;
+            printf("fails (%d)\n",totfails);
+	  } else {
+
+  	    ppay = (udp_in + pos + sizeof(pay_hdr_t));
+            memcpy(udp_out + offset , ppay, len);
+  	    offset += len;
+  
+            if (len < DATA_SIZE) {
+              len_out = sendto(fd_out, udp_out, offset, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
+      	      offset = 0;
+            }
+          }
+	}
       }
     }
   }
