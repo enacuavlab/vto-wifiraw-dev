@@ -52,8 +52,9 @@ int main(int argc, char *argv[]) {
   if (-1 == bind(fd_out, (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
   uint16_t offset0 = sizeof(uint8_taRadiotapHeader)+sizeof(ieee_hdr_data);
+  uint16_t offset1 = offset0 + sizeof(pay_hdr_t);
 
-  ssize_t len_in, len_out;
+  ssize_t len_in;
   uint16_t len = 0, offset = 0, seq = 1;
   uint8_t udp_in[UDP_SIZE];
 
@@ -62,7 +63,7 @@ int main(int argc, char *argv[]) {
   pay_hdr_t *phead;
 
   for(;;) {
-    len_in = read(fd_in, udp_in + offset0, UDP_SIZE - offset0);
+    len_in = read(fd_in, udp_in + offset1, UDP_SIZE - offset1);
     printf("read(%ld)\n",len_in);fflush(stdout);
     offset = 0;
     while (len_in > 0) {
@@ -79,11 +80,11 @@ int main(int argc, char *argv[]) {
       stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
       phead->stp_n = stp_n;
          
-      len_out = write(fd_out, udp_in + offset, len + offset0);
+      write(fd_out, udp_in + offset, len + offset1);
 
       printf("(%d)(%d)\n",seq,len);fflush(stdout);
-      offset += len_out;
-      len_in -= len_out;
+      offset += len;
+      len_in -= len;
 
       usleep(800);
     }
