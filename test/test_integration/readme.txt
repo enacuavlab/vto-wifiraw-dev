@@ -37,6 +37,25 @@ diff /tmp/10G.log /tmp/10G_rx.log
 note:
 This test can also check if TX NOACK is set or not. So the driver "might" resend the packets.
 
+-------------------------------------------------------------------------------
+sudo ./tx_udp_dbg 127.0.0.1:5000 $node 
+sudo ./rx_udp_dbg 127.0.0.1:6000 $node
+
+----------
+echo "message 1" | netcat 127.0.0.1 5000
+
+cat /tmp/10G.log | pv -L 512k | nc -u 127.0.0.1 5000
+
+----------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  tee name=t ! queue ! x264enc tune=zerolatency bitrate=1500 ! rtph264pay mtu=1400 config-interval=-1 ! udpsink port=5000 host=127.0.0.1  t. ! queue ! videoconvert ! autovideosink sync=false
+
+gst-launch-1.0 udpsrc port=6000 ! application/x-rtp, encoding-name=H264, payload=96 ! rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
+
+---------
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  tee name=t ! queue ! x264enc tune=zerolatency bitrate=1500 ! udpsink port=5000 host=127.0.0.1  t. ! queue ! videoconvert ! autovideosink sync=false
+
+gst-launch-1.0 udpsrc port=6000 ! h264parse ! avdec_h264 !  videoconvert ! autovideosink sync=false
+
 
 -------------------------------------------------------------------------------
 Test streaming with fdsink/stdin, stdout/fdsrc :

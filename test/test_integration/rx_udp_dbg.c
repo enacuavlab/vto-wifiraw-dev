@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
   uint8_t udp_in[PKT_SIZE_1_IN];
   uint8_t udp_out[UDP_SIZE];
   uint8_t *ppay;
+  bool lastpkt = false;
 
   uint64_t stp_n;
   pay_hdr_t *phead;
@@ -100,6 +101,7 @@ int main(int argc, char *argv[]) {
     if(FD_ISSET(fd_in, &readset)) {  
       if ( ret == 1 ) {
         len_in = read(fd_in, udp_in, PKT_SIZE_1_IN);
+	printf("(%ld)\n",len_in);
         if (len_in > 0) {
 
           clock_gettime( CLOCK_MONOTONIC, &curr);
@@ -110,6 +112,8 @@ int main(int argc, char *argv[]) {
           seq = phead->seq;
           len = phead->len;                          // this len do not include pay_hdr_t
           stp_n = phead->stp_n;
+
+	  if (len & (1UL << 15)) { len &= (~(1U << 15)); lastpkt = true; } // check end packet segment 
 
 	  datalen = sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + len; 
           const uint8_t *s = &udp_in[u16HeaderLen];  // compute CRC32 after radiotap header
@@ -130,9 +134,10 @@ int main(int argc, char *argv[]) {
             memcpy(udp_out + offset , ppay, len);
   	    offset += len;
   
-            if (len < DATA_SIZE) {
+            if (lastpkt)  {
               len_out = sendto(fd_out, udp_out, offset, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
-      	      offset = 0;
+      	      offset = 0; lastpkt = false;
+	      printf("send (%ld)\n",len_out);
             }
           }
 	}

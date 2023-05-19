@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
   uint16_t offset1 = offset0 + sizeof(pay_hdr_t);
 
   ssize_t len_in;
-  uint16_t len = 0, offset = 0, seq = 1;
+  uint16_t len = 0, offset = 0, seq = 1, len_tag;
   uint8_t udp_in[UDP_SIZE];
 
   uint64_t stp_n;
@@ -64,17 +64,20 @@ int main(int argc, char *argv[]) {
 
   for(;;) {
     len_in = read(fd_in, udp_in + offset1, UDP_SIZE - offset1);
+    printf("(%ld)\n",len_in);
     offset = 0;
     while (len_in > 0) {
-      if (len_in > DATA_SIZE) len = DATA_SIZE;
-      else len = len_in;
+      if (len_in > DATA_SIZE) { len = DATA_SIZE; len_tag = len; }
+      else { len = len_in; len_tag = len; (len_tag |= 1UL << 15); } // Set signed bit of unsigned length to signal  sequence end
+    
+      printf("(%d)(%d)\n",len,len_tag);
 
       memcpy( udp_in + offset, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
       ieee_hdr_data[9] = param_portid;
       memcpy( udp_in + offset + sizeof(uint8_taRadiotapHeader), ieee_hdr_data, sizeof(ieee_hdr_data));
       phead = (pay_hdr_t *)(udp_in + offset + offset0);
       phead->seq = seq;
-      phead->len = len;
+      phead->len = len_tag;
       clock_gettime( CLOCK_MONOTONIC, &stp);
       stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
       phead->stp_n = stp_n;
