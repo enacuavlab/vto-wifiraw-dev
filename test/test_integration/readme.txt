@@ -19,8 +19,8 @@ openssl rand 1024 > /tmp/1K.log
 
 openssl rand 10240 > /tmp/10K.log 
 openssl rand 102400 > /tmp/100K.log
-openssl rand 1024000 > /tmp/1G.log
-openssl rand 10240000 > /tmp/10G.log
+openssl rand 1024000 > /tmp/1M.log
+openssl rand 10240000 > /tmp/10M.log
 => OK for MCS 4 (missing packet above) 
 10 Gb in 8 secs
 
@@ -45,11 +45,11 @@ sudo ./rx_udp_dbg 127.0.0.1:6000 $node
 echo "message 1" | socat - udp:127.0.0.1:5000
 socat - udp4-listen:6000,reuseaddr,fork
 
-cat /tmp/10G.log | pv -L 1M |  socat - udp:127.0.0.1:5000
+cat /tmp/10M.log | pv -L 512K |  socat - udp:127.0.0.1:5000
 socat - udp4-listen:6000,reuseaddr,fork > /tmp/rx.log
-diff /tmp/10G.log /tmp/rx.log
+diff /tmp/10M.log /tmp/rx.log
 Issue : 
-Binary files /tmp/10G.log and /tmp/rx.log differ
+Binary files /tmp/10M.log and /tmp/rx.log differ
 
 ----------
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  tee name=t ! queue ! x264enc tune=zerolatency bitrate=1500 ! rtph264pay mtu=1400 config-interval=-1 ! udpsink port=5000 host=127.0.0.1  t. ! queue ! videoconvert ! autovideosink sync=false

@@ -77,14 +77,14 @@ int main(int argc, char *argv[]) {
   addr_out.sin_port = htons(port_out);
   addr_out.sin_addr.s_addr = inet_addr(addr_str);
 
-  uint32_t totfails = 0;
+  uint32_t totfails = 0, totdrops = 0;
 
   uint32_t crc, crc_rx;
   build_crc32_table();
 
   struct timespec curr;
   ssize_t len_in, len_out;
-  uint16_t len = 0, ret, u16HeaderLen, pos, seq, offset = 0, datalen;
+  uint16_t len = 0, ret, u16HeaderLen, pos, seq, seqprev=1, offset = 0, datalen;
   uint8_t udp_in[PKT_SIZE_1_IN];
   uint8_t udp_out[UDP_SIZE];
   uint8_t *ppay;
@@ -101,7 +101,6 @@ int main(int argc, char *argv[]) {
     if(FD_ISSET(fd_in, &readset)) {  
       if ( ret == 1 ) {
         len_in = read(fd_in, udp_in, PKT_SIZE_1_IN);
-	printf("(%ld)\n",len_in);
         if (len_in > 0) {
 
           clock_gettime( CLOCK_MONOTONIC, &curr);
@@ -137,7 +136,11 @@ int main(int argc, char *argv[]) {
             if (lastpkt)  {
               len_out = sendto(fd_out, udp_out, offset, 0, (struct sockaddr *)&addr_out, sizeof(struct sockaddr));
       	      offset = 0; lastpkt = false;
-	      printf("send (%ld)\n",len_out);
+	      if ((seq>1) && (seqprev != seq-1)) {
+	        totdrops ++;
+                printf("drops (%d)(%d)\n",totdrops,seq);
+	      }
+	      seqprev = seq;
             }
           }
 	}
