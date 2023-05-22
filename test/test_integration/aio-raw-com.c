@@ -23,6 +23,9 @@ void init_tx(init_tx_t *ptx) {
   char addr_str[20] = "127.0.0.1";
   uint16_t port_in=5000;
 
+  ptx->log = fopen("/tmp/tx.log", "a");
+  setvbuf(ptx->log, NULL, _IONBF, 0);
+
   if (-1 == (ptx->fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
   struct sockaddr_in addr_in;
   addr_in.sin_family = AF_INET;
@@ -48,6 +51,9 @@ void init_rx(init_rx_t *prx) {
 
   char addr_str[20] = "127.0.0.1";
   uint16_t port_out=6000;
+
+  prx->log = fopen("/tmp/rx.log", "a");
+  setvbuf(prx->log, NULL, _IONBF, 0);
 
   struct sock_filter bpf_bytecode[] = { 
     { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A

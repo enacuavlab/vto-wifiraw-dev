@@ -44,28 +44,25 @@ typedef struct {
 } __attribute__((packed)) pay_hdr_t;
 
 typedef struct {
+  FILE *log;
   char node[20];
   uint16_t fd_in;
   uint16_t fd_out;
 } init_tx_t;  
 
 typedef struct {
+  FILE *log;
   char node[20];
   uint16_t fd_in;
   uint16_t fd_out;
   struct sockaddr_in addr_out;
 } init_rx_t;  
 
-#define DATA_SIZE     1400
-// Full 802.11 transmitted packet with headers, payload
-#define PKT_SIZE_0 (sizeof(uint8_taRadiotapHeader) + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE )
-// and CRC32
-#define PKT_SIZE_1 (PKT_SIZE_0 + sizeof(uint32_t))
+#define UDP_SIZE 65507
+#define DATA_SIZE 1400
 
 #define PKT_SIZE_0_IN (50 + sizeof(ieee_hdr_data) + sizeof(pay_hdr_t) + DATA_SIZE ) // Estimated variable radiotap header on reception
 #define PKT_SIZE_1_IN (PKT_SIZE_0_IN + sizeof(uint32_t))
-
-#define UDP_SIZE 65507
 
 #define offset0 (sizeof(uint8_taRadiotapHeader)+sizeof(ieee_hdr_data))
 #define offset1 (sizeof(uint8_taRadiotapHeader)+sizeof(ieee_hdr_data) + sizeof(pay_hdr_t))

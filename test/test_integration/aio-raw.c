@@ -1,35 +1,42 @@
 #include "aio-raw-com.h"
 
 /*
+ 
+gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=25/1 ! timeoverlay !  tee name=t ! queue ! x264enc tune=zerolatency bitrate=5000 ! rtph264pay mtu=1400 config-interval=-1 ! udpsink port=5000 host=127.0.0.1  t. ! queue ! videoconvert ! autovideosink sync=false
+
 sudo ./aio-raw 0 $node
+tail -f /tmp/tx.log
+
 sudo ./aio-raw 1 $node
+tail -f /tmp/rx.log
+
+gst-launch-1.0 udpsrc port=6000 ! application/x-rtp, encoding-name=H264, payload=96 ! rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
+
 */
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+   setpriority(PRIO_PROCESS, 0, -10);
+
   if ((argc==1)||(argc>3)) exit(-1);
   uint8_t role =atoi(argv[1]);
   if (!role) {
+
     init_tx_t ptx;
     strcpy(ptx.node,argv[argc - 1]);
     init_tx(&ptx);
 
-    ssize_t len_in;
-    uint16_t len = 0, offset = 0, seq = 1, len_tag, ret;
+    double  kbytesec;
     uint8_t udp_in[UDP_SIZE];
-  
-    uint64_t stp_n,now_n,lastime_n,timeleft_n,elapse_n;
-    struct timespec stp,timeleft;
-    pay_hdr_t *phead;
-  
+    uint16_t len = 0, offset = 0, seq = 1, len_tag, ret, totsnd=0;
+    uint64_t stp_n,now_n,lastime_n,timeleft_n,elapse_n,start_n;
+    struct timespec stp,timeleft,now;
     struct timeval timeout;
+    ssize_t len_in;
     fd_set readset;
+    pay_hdr_t *phead;
  
-    struct timespec now; 
-
-    setpriority(PRIO_PROCESS, 0, -10);
-  
     for(;;) {
       FD_ZERO(&readset);
       FD_SET(ptx.fd_in, &readset);
@@ -48,7 +55,7 @@ int main(int argc, char *argv[]) {
           phead = (pay_hdr_t *)(udp_in + offset + offset0);
           phead->seq = seq;
           phead->len = len_tag;
-          clock_gettime( CLOCK_MONOTONIC, &stp);
+          clock_gettime( CLOCK_REALTIME, &stp);
           stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
           phead->stp_n = stp_n;
              
@@ -72,51 +79,58 @@ int main(int argc, char *argv[]) {
 	  lastime_n = now_n;
 	  while (nanosleep(&timeleft, NULL)); // Constant time delay between each packet sent
         }
-        if (seq == 65535)  seq = 1;  else seq++;
 
         clock_gettime( CLOCK_REALTIME, &now);
         now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
-	if (seq == 1) start_n = now_n; // Compute cyclic byte rate
-	else {
+	if (seq != 1) { // Compute cyclic byte rate
           elapse_n = now_n - start_n;
-	  if (elapse_n > 1000000000L) { byterate = tosnd / elapse_n;  totsnd = 0; }
-	  else totsnd += len_in;
-	} 
+	  if (elapse_n > 1000000000L) { kbytesec = ((double)totsnd / elapse_n * 1000000); start_n = now_n; totsnd = 0; 
+	                                fprintf(ptx.log,"kbytesec(%d)\n",(uint16_t)kbytesec); }
+	} else start_n = now_n;
+	totsnd += offset;
+
+        if (seq == 65535)  seq = 1;  else seq++;
       }
     }
   } else {
+
     init_rx_t prx;
     strcpy(prx.node,argv[argc - 1]);
     init_rx(&prx);
 
-    uint32_t totfails = 0, totdrops = 0;
-    uint32_t crc, crc_rx;
-  
-    struct timespec curr;
-    ssize_t len_in, len_out;
-    uint16_t len = 0, ret, u16HeaderLen, pos, seq, seqprev=1, offset = 0, datalen;
+    double  kbytesec;
+    bool lastpkt = false;
     uint8_t udp_in[PKT_SIZE_1_IN];
     uint8_t udp_out[UDP_SIZE];
     uint8_t *ppay;
-    bool lastpkt = false;
-  
-    uint64_t stp_n;
+    int8_t u8Antdbm;
+    uint16_t len = 0, ret, u16HeaderLen, pos, seq, seqprev=1, offset = 0, datalen, totrcv = 0 ;
+    uint32_t totfails = 0, totdrops = 0;
+    uint32_t crc, crc_rx;
+    uint64_t stp_n,now_n,elapse_n,start_n;
+    struct timeval timeout;
+    struct timespec now;
+    ssize_t len_in, len_out;
     pay_hdr_t *phead;
-  
     fd_set readset;
+
     for(;;) {
       FD_ZERO(&readset);
       FD_SET(prx.fd_in, &readset);
-      ret = select(prx.fd_in + 1, &readset, NULL, NULL, NULL);
+      timeout.tv_sec = 1; timeout.tv_usec = 0;
+      ret = select(prx.fd_in + 1, &readset, NULL, NULL, &timeout);
+//      ret = select(prx.fd_in + 1, &readset, NULL, NULL, NULL);
       if(FD_ISSET(prx.fd_in, &readset)) {  
         if ( ret == 1 ) {
           len_in = read(prx.fd_in, udp_in, PKT_SIZE_1_IN);
           if (len_in > 0) {
   
-            clock_gettime( CLOCK_MONOTONIC, &curr);
-            u16HeaderLen = (udp_in[2] + (udp_in[3] << 8)); // variable radiotap header size
+            clock_gettime( CLOCK_REALTIME, &now);
+            u16HeaderLen = (udp_in[2] + (udp_in[3] << 8)); // get variable radiotap header size
             pos = u16HeaderLen + sizeof(ieee_hdr_data);
-   
+  
+	    u8Antdbm = udp_in[31];
+
     	    phead = (pay_hdr_t *)(udp_in + pos);
             seq = phead->seq;
             len = phead->len;                          // this len do not include pay_hdr_t
@@ -134,10 +148,8 @@ int main(int argc, char *argv[]) {
             }
   	    memcpy(&crc_rx, &udp_in[len_in - 4], sizeof(crc_rx)); // CRC32 : last four bytes
   								
-            if (~crc != crc_rx) {
-  	      totfails ++;
-              printf("fails (%d)\n",totfails);
-  	    } else {
+            if (~crc != crc_rx) totfails ++;
+  	    else {
     	      ppay = (udp_in + pos + sizeof(pay_hdr_t));
               memcpy(udp_out + offset , ppay, len);
     	      offset += len;
@@ -145,16 +157,21 @@ int main(int argc, char *argv[]) {
               if (lastpkt)  {
                 len_out = sendto(prx.fd_out, udp_out, offset, 0, (struct sockaddr *)&(prx.addr_out), sizeof(struct sockaddr));
                 offset = 0; lastpkt = false;
-  	        if ((seq>1) && (seqprev != seq-1)) {
-  	          totdrops ++;
-                  printf("drops (%d)(%d)\n",totdrops,seq);
-  	        }
+  	        if ((seq>1) && (seqprev != seq-1)) totdrops ++;
   	        seqprev = seq;
               }
             }
   	  }
         }
       }
+      clock_gettime( CLOCK_REALTIME, &now);
+      now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
+      if (seq != 1) { // Compute cyclic byte rate
+        elapse_n = now_n - start_n;
+        if (elapse_n > 1000000000L) { kbytesec = ((double)totrcv / elapse_n * 1000000); start_n = now_n; totrcv = 0; 
+                                      fprintf(prx.log,"kbytesec(%d)fails(%d)drops(%d)dbm(%d)\n",(uint16_t)kbytesec,totfails,totdrops,u8Antdbm); }
+      } else start_n = now_n;
+      totrcv += len_out;
     }
   }
 }
