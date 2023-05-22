@@ -1,3 +1,6 @@
+sudo ./multi_aio-raw 0 $node
+sudo ./multi_aio-raw 1 $node
+
 -------------------------------------------------------------------------------
 Test video streaming
 --------------------
