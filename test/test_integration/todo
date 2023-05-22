@@ -1,14 +1,37 @@
-tx_raw_fec / rx_raw_fec
+CPPFLAGS=-Wall -D _GNU_SOURCE -g
+LDFLAGS=-lpcap 
 
-Issue big (> 150 x 1.5k)  files transmission
+all: aio-raw #tx_udp_dbg rx_udp_dbg # tx_dbg rx_dbg # tx_udp rx_udp #tx_raw rx_raw
 
-Issues
-------
-=> BLUR IMAGES
+%.o: %.c
+	gcc -c -o $@ $< $(CPPFLAGS)
 
-gst-launch-1.0 videotestsrc ! 'video/x-raw,width=1280,height=720,format=NV12,framerate=30/1' ! timeoverlay ! x264enc  tune=zerolatency bitrate=5000 speed-preset=superfast !  udpsink port=5000 host=127.0.0.1
+aio-raw: aio-raw.o aio-raw-com.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
-sudo ./tx_raw 127.0.0.1:5000 $node  | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+rx_udp_dbg: rx_udp_dbg.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
-sudo ./rx_raw $node | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+tx_udp_dbg: tx_udp_dbg.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
+tx_dbg: tx_dbg.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+rx_dbg: rx_dbg.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+tx_udp: tx_udp.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+rx_udp: rx_udp.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+tx_raw: tx_raw.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+rx_raw: rx_raw.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+clean:
+	rm -f aio-raw rx_udp_dbg  tx_udp_dbg  rx_dbg tx_dbg  tx_udp rx_udp tx_raw rx_raw *~ *.o
