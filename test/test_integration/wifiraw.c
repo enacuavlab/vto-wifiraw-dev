@@ -1,5 +1,15 @@
 #include "wifiraw-com.h"
 
+/*
+
+BOARD
+sudo ./wifiraw 1  $node
+
+GROUND
+sudo ./wifiraw 0  $node
+
+*/
+
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
@@ -8,112 +18,38 @@ int main(int argc, char *argv[]) {
   if ((argc==1)||(argc>3)) exit(-1);
   init_t px;
   px.role = atoi(argv[1]);
-  it (px.role > 2) exit(-1);
-  
-  if (!role) {                          // This is the onboard process
+  if (px.role > 2) exit(-1);
+  strcpy(px.node,argv[argc - 1]);
+  init(&px);
 
-    init_t ptx;
-    strcpy(ptx.node,argv[argc - 1]);
-    init_tx(&ptx);
+  double  kbytesec;
+  uint8_t udp_in[UDP_SIZE];
+  uint16_t len = 0, offset = 0, seq = 1, len_tag, ret;
+  uint64_t stp_n,now_n,lastime_n,timeleft_n,elapse_n,start_n;
+  struct timespec stp,timeleft,now;
+  struct timeval timeout;
+  ssize_t len_in, len_out;
+  fd_set readset;
+  pay_hdr_t *phead;
 
-    double  kbytesec;
-    uint8_t udp_in[UDP_SIZE];
-    uint16_t len = 0, offset = 0, seq = 1, len_tag, ret, totsnd=0;
-    uint64_t stp_n,now_n,lastime_n,timeleft_n,elapse_n,start_n;
-    struct timespec stp,timeleft,now;
-    struct timeval timeout;
-    ssize_t len_in;
-    fd_set readset;
-    pay_hdr_t *phead;
- 
-    for(;;) {
-      FD_ZERO(&readset);
-      readset = ptx.readset;
-      timeout.tv_sec = 1; timeout.tv_usec = 0;
-      ret = select(1 + ptx.maxfd, &readset, NULL, NULL, &timeout);
-      for (uint8_t id = 0; id  < 3 && ret > 0; id++) {
-        if(FD_ISSET(ptx.fd_in[id], &readset)) {
-          len_in = read(ptx.fd_in[id], udp_in + offset1, UDP_SIZE - offset1);
-          offset = 0;
-          while (len_in > 0) {
-            if (len_in > DATA_SIZE) { len = DATA_SIZE; len_tag = len; }
-            else { len = len_in; len_tag = len; (len_tag |= 1UL << 15); } // Set signed bit of unsigned length to signal  sequence end
-          
-            memcpy( udp_in + offset, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
-  	    ieee_hdr_data[9] = 5;
-            memcpy( udp_in + offset + sizeof(uint8_taRadiotapHeader), ieee_hdr_data, sizeof(ieee_hdr_data));
-            phead = (pay_hdr_t *)(udp_in + offset + offset0);
-            phead->id = id;
-            phead->seq = seq;
-            phead->len = len_tag;
-            clock_gettime( CLOCK_REALTIME, &stp);
-            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-            phead->stp_n = stp_n;
-               
-            write(ptx.fd_raw, udp_in + offset, len + offset1);
-      
-            offset += len;
-            len_in -= len;
-     
-            clock_gettime( CLOCK_REALTIME, &now);
-            now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
-  	    if (seq == 1) { timeleft.tv_sec = 0; timeleft.tv_nsec = 800; }
-  	    else {
-              timeleft_n = lastime_n + 800 - now_n;
-  	      if ( (lastime_n + 800) < now_n) { timeleft.tv_nsec = 0; timeleft.tv_sec = 0; }
-  	      else { 
-  	        timeleft_n = lastime_n + 800 - now_n;
-  	        timeleft.tv_sec = timeleft_n / (uint64_t)1000000000;
-  	        timeleft.tv_nsec = timeleft_n % (uint64_t)1000000000;
-  	      }
-  	    }
-  	    lastime_n = now_n;
-  	    while (nanosleep(&timeleft, NULL)); // Constant time delay between each packet sent
-          }
-  
-          clock_gettime( CLOCK_REALTIME, &now);
-          now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
-  	  if (seq != 1) { // Compute cyclic byte rate
-            elapse_n = now_n - start_n;
-  	    if (elapse_n > 1000000000L) { kbytesec = ((double)totsnd / elapse_n * 1000000); start_n = now_n; totsnd = 0; 
-  	                                fprintf(ptx.log,"kbytesec(%d)\n",(uint16_t)kbytesec); }
-  	  } else start_n = now_n;
-  	  totsnd += offset;
-  
-          if (seq == 65535)  seq = 1;  else seq++;
-        }
-      }
-    }
-  } else {
+  uint8_t udp_out[UDP_SIZE];
+  uint8_t *ppay;
+  int8_t u8Antdbm, id;
+  uint16_t u16HeaderLen, pos, datalen, seqprev=1, totrcv = 0 ;
+  uint32_t crc, crc_rx;
+  bool lastpkt = false;
+  uint32_t totfails = 0, totdrops = 0;
 
-    init_rx_t prx;
-    strcpy(prx.node,argv[argc - 1]);
-    init_rx(&prx);
 
-    double  kbytesec;
-    bool lastpkt = false;
-    uint8_t udp_in[PKT_SIZE_1_IN];
-    uint8_t udp_out[UDP_SIZE];
-    uint8_t *ppay;
-    int8_t u8Antdbm, id;
-    uint16_t len = 0, ret, u16HeaderLen, pos, seq, seqprev=1, offset = 0, datalen, totrcv = 0 ;
-    uint32_t totfails = 0, totdrops = 0;
-    uint32_t crc, crc_rx;
-    uint64_t stp_n,now_n,elapse_n,start_n;
-    struct timeval timeout;
-    struct timespec now;
-    ssize_t len_in, len_out;
-    pay_hdr_t *phead;
-    fd_set readset;
-
-    for(;;) {
-      FD_ZERO(&readset);
-      FD_SET(prx.fd_raw, &readset);
-      timeout.tv_sec = 1; timeout.tv_usec = 0;
-      ret = select(1 + prx.fd_raw, &readset, NULL, NULL, &timeout);
-      if(FD_ISSET(prx.fd_raw, &readset)) {
-        if ( ret == 1 ) {
-          len_in = read(prx.fd_raw, udp_in, PKT_SIZE_1_IN);
+  for(;;) {
+    FD_ZERO(&readset);
+    readset = px.readset;
+    timeout.tv_sec = 1; timeout.tv_usec = 0;
+    ret = select(1 + px.maxfd, &readset, NULL, NULL, &timeout);
+    for (id = 0; id  < 4 && ret > 0; id++) {
+      if(FD_ISSET(px.fd_in[id], &readset)) {
+	if (id == 0) {                                     // read raw and send to udp
+          len_in = read(px.fd_in[0], udp_in, PKT_SIZE_1_IN);
           if (len_in > 0) {
       
             clock_gettime( CLOCK_REALTIME, &now);
@@ -147,23 +83,63 @@ int main(int argc, char *argv[]) {
               offset += len;
         
               if (lastpkt)  {
-                len_out = sendto(prx.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(prx.addr_out[id]), sizeof(struct sockaddr));
+                len_out = sendto(px.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id]), sizeof(struct sockaddr));
                 offset = 0; lastpkt = false;
       	        if ((seq>1) && (seqprev != seq-1)) totdrops ++;
       	        seqprev = seq;
               }
             }
           }
-        }
+        } else {                                      // read udp and send to raw
+
+          len_in = read(px.fd_in[id], udp_in + offset1, UDP_SIZE - offset1);
+          offset = 0;
+          while (len_in > 0) {
+            if (len_in > DATA_SIZE) { len = DATA_SIZE; len_tag = len; }
+            else { len = len_in; len_tag = len; (len_tag |= 1UL << 15); } // Set signed bit of unsigned length to signal  sequence end
+          
+            memcpy( udp_in + offset, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
+  	    ieee_hdr_data[9] = 5;
+            memcpy( udp_in + offset + sizeof(uint8_taRadiotapHeader), ieee_hdr_data, sizeof(ieee_hdr_data));
+            phead = (pay_hdr_t *)(udp_in + offset + offset0);
+            phead->id = id;
+            phead->seq = seq;
+            phead->len = len_tag;
+            clock_gettime( CLOCK_REALTIME, &stp);
+            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+            phead->stp_n = stp_n;
+               
+            write(px.fd_out[0], udp_in + offset, len + offset1);
+      
+            offset += len;
+            len_in -= len;
+     
+            clock_gettime( CLOCK_REALTIME, &now);
+            now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
+  	    if (seq == 1) { timeleft.tv_sec = 0; timeleft.tv_nsec = 800; }
+  	    else {
+              timeleft_n = lastime_n + 800 - now_n;
+  	      if ( (lastime_n + 800) < now_n) { timeleft.tv_nsec = 0; timeleft.tv_sec = 0; }
+  	      else { 
+  	        timeleft_n = lastime_n + 800 - now_n;
+  	        timeleft.tv_sec = timeleft_n / (uint64_t)1000000000;
+  	        timeleft.tv_nsec = timeleft_n % (uint64_t)1000000000;
+  	      }
+  	    }
+  	    lastime_n = now_n;
+  	    while (nanosleep(&timeleft, NULL)); // Constant time delay between each packet sent
+          }
+	}
+  
+        clock_gettime( CLOCK_REALTIME, &now);
+        now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
+        if (seq != 1) { // Compute cyclic byte rate
+          elapse_n = now_n - start_n;
+          if (elapse_n > 1000000000L) { kbytesec = ((double)totrcv / elapse_n * 1000000); start_n = now_n; totrcv = 0; 
+                                      fprintf(px.log,"kbytesec(%d)fails(%d)drops(%d)dbm(%d)\n",(uint16_t)kbytesec,totfails,totdrops,u8Antdbm); }
+        } else start_n = now_n;
+        totrcv += len_out;
       }
-      clock_gettime( CLOCK_REALTIME, &now);
-      now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
-      if (seq != 1) { // Compute cyclic byte rate
-        elapse_n = now_n - start_n;
-        if (elapse_n > 1000000000L) { kbytesec = ((double)totrcv / elapse_n * 1000000); start_n = now_n; totrcv = 0; 
-                                      fprintf(prx.log,"kbytesec(%d)fails(%d)drops(%d)dbm(%d)\n",(uint16_t)kbytesec,totfails,totdrops,u8Antdbm); }
-      } else start_n = now_n;
-      totrcv += len_out;
     }
   }
 }

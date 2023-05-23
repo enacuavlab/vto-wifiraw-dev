@@ -46,6 +46,7 @@ typedef struct {
 
 typedef struct {
   FILE *log;
+  uint8_t role;
   char node[20];
   fd_set readset;
   uint16_t maxfd;

@@ -1,6 +1,6 @@
 #include "wifiraw-com.h"
 
-uint16_t inports[2][3]={{5600,4244,14900},{5700,4245,14800}};
+uint16_t ports[2][3]={{5600,4244,14900},{5700,4245,14800}};
 
 /*****************************************************************************/
 uint32_t crc32_table[256];
@@ -24,8 +24,8 @@ void init(init_t *px) {
 
   char addr_str[20] = "127.0.0.1";
 
-  ptx->log = fopen("/tmp/tx.log", "a");
-  setvbuf(ptx->log, NULL, _IONBF, 0);
+  px->log = fopen("/tmp/wifiraw.log", "a");
+  setvbuf(px->log, NULL, _IONBF, 0);
 
   // This is the rx raw socket, at position 0 in the input file descriptor array
   struct sock_filter bpf_bytecode[] = { 
@@ -46,7 +46,7 @@ void init(init_t *px) {
   if (-1 == setsockopt(px->fd_in[0], SOL_SOCKET, SO_ATTACH_FILTER, &zero_program, sizeof(zero_program))) exit(-1);
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(struct ifreq));
-  strncpy( ifr.ifr_name, prx->node, sizeof( ifr.ifr_name ) - 1 );
+  strncpy( ifr.ifr_name, px->node, sizeof( ifr.ifr_name ) - 1 );
   if (ioctl( px->fd_in[0], SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
   struct sockaddr_ll sll;
   memset( &sll, 0, sizeof( sll ) );
@@ -59,40 +59,41 @@ void init(init_t *px) {
     printf("----\n");
   };
   if (-1 == setsockopt(px->fd_in[0], SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
-  FD_SET(ptx->fd_in[0], &(ptx->readset));
+  FD_SET(px->fd_in[0], &(px->readset));
 
   // These are the rx udp sockets, following raw socket in the input file descriptor array
-  ptx->maxfd = px->fd_in[0];
+  uint8_t index; 
+  if (px->role) index=0; else index=1;
+  px->maxfd = px->fd_in[0];
   for (int i=1;i<4;i++) {
     if (-1 == (px->fd_in[i]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     struct sockaddr_in addr_in;
     addr_in.sin_family = AF_INET;
-    addr_in.sin_port = htons(ports[px->role][i-1]);
+    addr_in.sin_port = htons(ports[index][i-1]);
     addr_in.sin_addr.s_addr = inet_addr(addr_str);
-    if (-1 == bind(ptx->fd_in[i], (struct sockaddr *)&addr_in, sizeof(addr_in))) exit(-1);
-    if (ptx->fd_in[i] > ptx->maxfd) ptx->maxfd = ptx->fd_in[i];
-    FD_SET(ptx->fd_in[i], &(ptx->readset));
+    if (-1 == bind(px->fd_in[i], (struct sockaddr *)&addr_in, sizeof(addr_in))) exit(-1);
+    if (px->fd_in[i] > px->maxfd) px->maxfd = px->fd_in[i];
+    FD_SET(px->fd_in[i], &(px->readset));
   }
 
   // This is the tx raw socket, at position 0 in the ouput file descriptor array
-  if (-1 == (ptx->fd_out[0]=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
-  struct ifreq ifr;
+  if (-1 == (px->fd_out[0]=socket(AF_PACKET,SOCK_RAW,IPPROTO_RAW))) exit(-1);
   memset(&ifr, 0, sizeof(struct ifreq));
-  strncpy( ifr.ifr_name, ptx->node, sizeof( ifr.ifr_name ) - 1 );
-  if( ioctl( ptx->fd_out[0], SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
-  struct sockaddr_ll sll;
+  strncpy( ifr.ifr_name, px->node, sizeof( ifr.ifr_name ) - 1 );
+  if( ioctl( px->fd_out[0], SIOCGIFINDEX, &ifr ) < 0 ) exit(-1);
   memset( &sll, 0, sizeof( sll ) );
   sll.sll_family   = AF_PACKET;
   sll.sll_ifindex  = ifr.ifr_ifindex;
   sll.sll_protocol = htons( ETH_P_ALL );
-  if (-1 == bind(ptx->fd_out[0], (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
+  if (-1 == bind(px->fd_out[0], (struct sockaddr *)&sll, sizeof(sll))) exit(-1);
 
   // These are the tx udp sockets, following raw socket in the outpout file descriptor array
+  if (px->role) index=1; else index=0;
   for (int i=1;i<4;i++) {
-    if (-1 == (prx->fd_out[i]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
-    prx->addr_out[i].sin_family = AF_INET;
-    prx->addr_out[i].sin_port = htons(ports[ptx->role][i-1]);
-    prx->addr_out[i].sin_addr.s_addr = inet_addr(addr_str);
+    if (-1 == (px->fd_out[i]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+    px->addr_out[i].sin_family = AF_INET;
+    px->addr_out[i].sin_port = htons(ports[index][i-1]);
+    px->addr_out[i].sin_addr.s_addr = inet_addr(addr_str);
   }
 
   build_crc32_table();
