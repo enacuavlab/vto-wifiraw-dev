@@ -2,7 +2,7 @@
 
 export node wlx3c7c3fa9c1e8
 
-$PWD/wifiraw 1 $node
+$PWD/wifiraw 1 $node &
 
 socat TUN:10.0.1.2/24,tun-name=airtuntx,iff-no-pi,tun-type=tun,iff-up udp-sendto:127.0.0.1:14900 > /dev/null 2>&1 &
 socat udp-listen:14800,reuseaddr,fork TUN:10.0.1.2/24,tun-name=airtunrx,iff-no-pi,tun-type=tun,iff-up > /dev/null 2>&1 &
