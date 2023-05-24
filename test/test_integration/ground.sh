@@ -9,3 +9,5 @@ socat udp-listen:14900,reuseaddr,fork  TUN:10.0.1.1/24,tun-name=groundtunrx,iff-
 sleep 1
 ifconfig groundtuntx mtu 1400 up &
 while [ ! "`sysctl -w net.ipv4.conf.groundtunrx.rp_filter=2`" = "net.ipv4.conf.groundtunrx.rp_filter = 2" ];do sleep 1; done
+
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H264, payload=96 ! rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
