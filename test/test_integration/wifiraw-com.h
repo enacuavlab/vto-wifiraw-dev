@@ -50,9 +50,9 @@ typedef struct {
   char node[20];
   fd_set readset;
   uint16_t maxfd;
-  uint16_t fd_in[3];
-  uint16_t fd_out[3];
-  struct sockaddr_in addr_out[3];
+  uint16_t fd_in[4];
+  uint16_t fd_out[4];
+  struct sockaddr_in addr_out[4];
 } init_t;  
 
 
