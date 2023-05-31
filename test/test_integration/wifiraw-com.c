@@ -96,5 +96,37 @@ void init(init_t *px) {
     px->addr_out[i].sin_addr.s_addr = inet_addr(addr_str);
   }
 
+  // Tunnel Interface and associated socket
+  if (0 > (px->fd_tun=open("/dev/net/tun",O_RDWR))) exit(-1);
+  memset(&ifr, 0, sizeof(struct ifreq));
+  ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+  if (px->role) strcpy(ifr.ifr_name,"airtun"); else strcpy(ifr.ifr_name, "grdtun");
+  if (ioctl( px->fd_tun, TUNSETIFF, &ifr ) < 0 ) exit(-1);
+
+  if (-1 == (px->fd_tun_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  struct sockaddr_in addr_in,addr_out;
+  addr_in.sin_family = AF_INET;
+  if (px->role) addr_in.sin_addr.s_addr = inet_addr("10.0.1.2");
+  else addr_in.sin_addr.s_addr = inet_addr("10.0.1.1");
+  memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
+  if (ioctl( px->fd_tun_in, SIOCSIFADDR, &ifr ) < 0 ) exit(-1);
+  addr_in.sin_family = AF_INET;
+  addr_in.sin_addr.s_addr = inet_addr("255.255.255.255");
+  memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
+  if (ioctl( px->fd_tun_in, SIOCSIFNETMASK, &ifr ) < 0 ) exit(-1);
+  addr_out.sin_family = AF_INET;
+  if (px->role) addr_out.sin_port = htons(14900); else addr_out.sin_port = htons(14800);
+  addr_out.sin_addr.s_addr = inet_addr("127.0.0.1");
+  memcpy(&ifr.ifr_addr,&addr_out,sizeof(struct sockaddr));
+  if (ioctl( px->fd_tun_in, SIOCSIFDSTADDR, &ifr ) < 0 ) exit(-1);
+  ifr.ifr_mtu = 1400;
+  if (ioctl( px->fd_tun_in, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
+
+  memset(&ifr, 0, sizeof(struct ifreq));
+  if (px->role) strcpy(ifr.ifr_name,"airtun"); else strcpy(ifr.ifr_name, "grdtun");
+  ifr.ifr_flags = IFF_UP | IFF_RUNNING;
+  if (ioctl( px->fd_tun_in, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
+
+
   build_crc32_table();
 }

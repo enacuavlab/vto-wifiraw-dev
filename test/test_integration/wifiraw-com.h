@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <linux/filter.h>
 #include <linux/if_packet.h>
+#include <linux/if_tun.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -53,6 +54,8 @@ typedef struct {
   uint16_t fd_in[4];
   uint16_t fd_out[4];
   struct sockaddr_in addr_out[4];
+  uint16_t fd_tun;
+  uint16_t fd_tun_in;
 } init_t;  
 
 
