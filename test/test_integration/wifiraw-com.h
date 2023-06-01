@@ -51,11 +51,9 @@ typedef struct {
   char node[20];
   fd_set readset;
   uint16_t maxfd;
-  uint16_t fd_in[4];
-  uint16_t fd_out[4];
-  struct sockaddr_in addr_out[4];
-  uint16_t fd_tun;
-  uint16_t fd_tun_in;
+  uint16_t fd_in[2 + 2];
+  uint16_t fd_out[2 + 2];
+  struct sockaddr_in addr_out[2 + 2];
 } init_t;  
 
 

@@ -1,6 +1,7 @@
 #include "wifiraw-com.h"
 
-uint16_t ports[2][3]={{5600,4244,14900},{5700,4245,14800}};
+uint16_t ports[2][2]={{5600,4244},{5700,4245}};
+//uint16_t ports[2][3]={{5600,4244,14900},{5700,4245,14800}};
 
 /*****************************************************************************/
 uint32_t crc32_table[256];
@@ -59,17 +60,17 @@ void init(init_t *px) {
     printf("----\n");
   };
   if (-1 == setsockopt(px->fd_in[0], SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
+  px->maxfd = px->fd_in[0];
   FD_SET(px->fd_in[0], &(px->readset));
 
   // These are the rx udp sockets, following raw socket in the input file descriptor array
   uint8_t index; 
   if (px->role) index=0; else index=1;
-  px->maxfd = px->fd_in[0];
-  for (int i=1;i<4;i++) {
+  for (int i=2;i<4;i++) {
     if (-1 == (px->fd_in[i]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     struct sockaddr_in addr_in;
     addr_in.sin_family = AF_INET;
-    addr_in.sin_port = htons(ports[index][i-1]);
+    addr_in.sin_port = htons(ports[index][i-2]);
     addr_in.sin_addr.s_addr = inet_addr(addr_str);
     if (-1 == bind(px->fd_in[i], (struct sockaddr *)&addr_in, sizeof(addr_in))) exit(-1);
     if (px->fd_in[i] > px->maxfd) px->maxfd = px->fd_in[i];
@@ -89,44 +90,40 @@ void init(init_t *px) {
 
   // These are the tx udp sockets, following raw socket in the outpout file descriptor array
   if (px->role) index=1; else index=0;
-  for (int i=1;i<4;i++) {
+  for (int i=2;i<4;i++) {
     if (-1 == (px->fd_out[i]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     px->addr_out[i].sin_family = AF_INET;
-    px->addr_out[i].sin_port = htons(ports[index][i-1]);
+    px->addr_out[i].sin_port = htons(ports[index][i-2]);
     px->addr_out[i].sin_addr.s_addr = inet_addr(addr_str);
   }
 
   // Tunnel Interface and associated socket
-  if (0 > (px->fd_tun=open("/dev/net/tun",O_RDWR))) exit(-1);
+  if (0 > (px->fd_in[1]=open("/dev/net/tun",O_RDWR))) exit(-1);
   memset(&ifr, 0, sizeof(struct ifreq));
   ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
   if (px->role) strcpy(ifr.ifr_name,"airtun"); else strcpy(ifr.ifr_name, "grdtun");
-  if (ioctl( px->fd_tun, TUNSETIFF, &ifr ) < 0 ) exit(-1);
+  if (ioctl( px->fd_in[1], TUNSETIFF, &ifr ) < 0 ) exit(-1);
+  if (px->fd_in[1] > px->maxfd) px->maxfd = px->fd_in[1];
+  FD_SET(px->fd_in[1], &(px->readset));
 
-  if (-1 == (px->fd_tun_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
-  struct sockaddr_in addr_in,addr_out;
+  int16_t fd;
+  if (-1 == (fd=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  struct sockaddr_in addr_in;
   addr_in.sin_family = AF_INET;
   if (px->role) addr_in.sin_addr.s_addr = inet_addr("10.0.1.2");
   else addr_in.sin_addr.s_addr = inet_addr("10.0.1.1");
   memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
-  if (ioctl( px->fd_tun_in, SIOCSIFADDR, &ifr ) < 0 ) exit(-1);
+  if (ioctl( fd, SIOCSIFADDR, &ifr ) < 0 ) exit(-1);
   addr_in.sin_family = AF_INET;
-  addr_in.sin_addr.s_addr = inet_addr("255.255.255.255");
+  addr_in.sin_addr.s_addr = inet_addr("255.255.255.0");
   memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
-  if (ioctl( px->fd_tun_in, SIOCSIFNETMASK, &ifr ) < 0 ) exit(-1);
-  addr_out.sin_family = AF_INET;
-  if (px->role) addr_out.sin_port = htons(14900); else addr_out.sin_port = htons(14800);
-  addr_out.sin_addr.s_addr = inet_addr("127.0.0.1");
-  memcpy(&ifr.ifr_addr,&addr_out,sizeof(struct sockaddr));
-  if (ioctl( px->fd_tun_in, SIOCSIFDSTADDR, &ifr ) < 0 ) exit(-1);
+  if (ioctl( fd, SIOCSIFNETMASK, &ifr ) < 0 ) exit(-1);
   ifr.ifr_mtu = 1400;
-  if (ioctl( px->fd_tun_in, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
-
+  if (ioctl( fd, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
   memset(&ifr, 0, sizeof(struct ifreq));
   if (px->role) strcpy(ifr.ifr_name,"airtun"); else strcpy(ifr.ifr_name, "grdtun");
-  ifr.ifr_flags = IFF_UP | IFF_RUNNING;
-  if (ioctl( px->fd_tun_in, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
-
+  ifr.ifr_flags = IFF_UP ;
+  if (ioctl( fd, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
 
   build_crc32_table();
 }

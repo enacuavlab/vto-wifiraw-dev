@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
       if(FD_ISSET(px.fd_in[id], &readset)) {
 	if (id == 0) {                                     // read raw and send to udp
           len_in = read(px.fd_in[0], udp_in, PKT_SIZE_1_IN);
+	  printf("In len_in(%ld)\n",len_in);
           if (len_in > 0) {
       
             clock_gettime( CLOCK_REALTIME, &now);
@@ -84,6 +85,7 @@ int main(int argc, char *argv[]) {
         
               if (lastpkt)  {
                 len_out = sendto(px.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id]), sizeof(struct sockaddr));
+		printf("Out len_out(%ld)\n",len_out);
                 offset = 0; lastpkt = false;
       	        if ((seq>1) && (seqprev != seq-1)) totdrops ++;
       	        seqprev = seq;
@@ -93,6 +95,7 @@ int main(int argc, char *argv[]) {
         } else {                                      // read udp and send to raw
 
           len_in = read(px.fd_in[id], udp_in + offset1, UDP_SIZE - offset1);
+	  printf("Out len_in(%ld)\n",len_in);
           offset = 0;
           while (len_in > 0) {
             if (len_in > DATA_SIZE) { len = DATA_SIZE; len_tag = len; }
@@ -109,7 +112,8 @@ int main(int argc, char *argv[]) {
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
             phead->stp_n = stp_n;
                
-            write(px.fd_out[0], udp_in + offset, len + offset1);
+            ssize_t dump = write(px.fd_out[0], udp_in + offset, len + offset1);
+	    printf("Out dimp(%ld)\n",dump);
       
             offset += len;
             len_in -= len;
