@@ -125,5 +125,8 @@ void init(init_t *px) {
   ifr.ifr_flags = IFF_UP ;
   if (ioctl( fd, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
 
+  // Tunnel is duplex
+  px->fd_out[1] = px->fd_in[1];
+
   build_crc32_table();
 }

@@ -84,8 +84,9 @@ int main(int argc, char *argv[]) {
               offset += len;
         
               if (lastpkt)  {
-                len_out = sendto(px.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id]), sizeof(struct sockaddr));
-		printf("Out len_out(%ld)\n",len_out);
+                if (id != 1) len_out = sendto(px.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id]), sizeof(struct sockaddr));
+		else len_out = write(px.fd_out[id], udp_out, offset);
+		printf("Out len_out(%d)(%ld)\n",id,len_out);
                 offset = 0; lastpkt = false;
       	        if ((seq>1) && (seqprev != seq-1)) totdrops ++;
       	        seqprev = seq;
