@@ -108,6 +108,7 @@ void init(init_t *px) {
 
   int16_t fd;
   if (-1 == (fd=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+
   struct sockaddr_in addr_in;
   addr_in.sin_family = AF_INET;
   if (px->role) addr_in.sin_addr.s_addr = inet_addr("10.0.1.2");
@@ -118,15 +119,19 @@ void init(init_t *px) {
   addr_in.sin_addr.s_addr = inet_addr("255.255.255.0");
   memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
   if (ioctl( fd, SIOCSIFNETMASK, &ifr ) < 0 ) exit(-1);
+
+  addr_in.sin_family = AF_INET;
+  if (px->role) addr_in.sin_addr.s_addr = inet_addr("10.0.1.1");
+  else addr_in.sin_addr.s_addr = inet_addr("10.0.1.2");
+  memcpy(&ifr.ifr_addr,&addr_in,sizeof(struct sockaddr));
+  if (ioctl( fd, SIOCSIFDSTADDR, &ifr ) < 0 ) exit(-1);
+
   ifr.ifr_mtu = 1400;
   if (ioctl( fd, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
   memset(&ifr, 0, sizeof(struct ifreq));
   if (px->role) strcpy(ifr.ifr_name,"airtun"); else strcpy(ifr.ifr_name, "grdtun");
   ifr.ifr_flags = IFF_UP ;
   if (ioctl( fd, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
-
-  // Tunnel is duplex
-  px->fd_out[1] = px->fd_in[1];
 
   build_crc32_table();
 }

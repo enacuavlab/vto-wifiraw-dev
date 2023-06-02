@@ -19,6 +19,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <errno.h>
 
 
 static uint8_t uint8_taRadiotapHeader[] =  {
