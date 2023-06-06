@@ -2,6 +2,8 @@
 
 /*
 
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+
 BOARD
 sudo ./wifiraw 1  $node
 
@@ -50,7 +52,7 @@ int main(int argc, char *argv[]) {
       if(FD_ISSET(px.fd_in[id], &readset)) {
 	if (id == 0) {                                     // read raw and send to udp
           len_in = read(px.fd_in[0], udp_in, PKT_SIZE_1_IN);
-	  printf("In len_in(%ld)\n",len_in);
+	  printf("In RAW(%ld)\n\n",len_in);
           if (len_in > 0) {
       
             clock_gettime( CLOCK_REALTIME, &now);
@@ -86,7 +88,11 @@ int main(int argc, char *argv[]) {
               if (lastpkt)  {
                 if (id != 1) len_out = sendto(px.fd_out[id], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id]), sizeof(struct sockaddr));
 		else len_out = write(px.fd_in[1], udp_out, offset); 
-		printf("Out len_out(%d)(%ld)\n",id,len_out);
+
+		printf("Comming from RAW and sendto local id(%d) offset((%d) len_out(%ld)\n[",id,offset,len_out);
+		for(int i=0;i<offset;i++) printf(" %x ",udp_out[i]);
+		printf(" ]\n\n");
+
                 offset = 0; lastpkt = false;
       	        if ((seq>1) && (seqprev != seq-1)) totdrops ++;
       	        seqprev = seq;
@@ -96,7 +102,12 @@ int main(int argc, char *argv[]) {
         } else {                                      // read udp and send to raw
 
           len_in = read(px.fd_in[id], udp_in + offset1, UDP_SIZE - offset1);
-	  printf("Out len_in(%ld)\n",len_in);
+
+	  ppay = udp_in + offset1;
+	  printf("Comming from local id(%d)  and write to RAW len_in(%ld)\n[",id,len_in);
+	  for(int i=0;i<len_in;i++) printf(" %x ",ppay[i]);
+	  printf(" ]\n\n");
+
           offset = 0;
           while (len_in > 0) {
             if (len_in > DATA_SIZE) { len = DATA_SIZE; len_tag = len; }
@@ -114,7 +125,7 @@ int main(int argc, char *argv[]) {
             phead->stp_n = stp_n;
                
             ssize_t dump = write(px.fd_out[0], udp_in + offset, len + offset1);
-	    printf("Out dimp(%ld)\n",dump);
+	    printf("Out RAW(%ld)\n\n",dump);
       
             offset += len;
             len_in -= len;
@@ -134,6 +145,7 @@ int main(int argc, char *argv[]) {
   	    lastime_n = now_n;
   	    while (nanosleep(&timeleft, NULL)); // Constant time delay between each packet sent
           }
+	  offset = 0;
 	}
   
         clock_gettime( CLOCK_REALTIME, &now);

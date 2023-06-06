@@ -108,7 +108,6 @@ void init(init_t *px) {
 
   int16_t fd;
   if (-1 == (fd=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
-
   struct sockaddr_in addr_in;
   addr_in.sin_family = AF_INET;
   if (px->role) addr_in.sin_addr.s_addr = inet_addr("10.0.1.2");
