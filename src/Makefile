@@ -1,22 +1,19 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -I../radiotap-library -I../zfec/zfec -g
+CPPFLAGS=-Wall -D _GNU_SOURCE -g
 LDFLAGS=-lpcap 
 
-all: tx_fec rx_fec
+all: wifiraw #multi-aio-raw #aio-raw
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-../radiotap-library/radiotap.o: ../radiotap-library/radiotap.c
-	gcc -c -o $@ $< $(CPPFLAGS)
-
-../zfec/zfec/fec.o: ../zfec/zfec/fec.c
-	gcc -c -o $@ $< $(CPPFLAGS)
-
-tx_fec: tx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+wifiraw: wifiraw.o wifiraw-com.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
-rx_fec: rx_fec.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+multi-aio-raw: multi-aio-raw.o multi-aio-raw-com.o
+	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+
+aio-raw: aio-raw.o aio-raw-com.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 clean:
-	rm -f tx_fec rx_fec  *~ *.o ../radiotap-library/radiotap.o ../zfec/zfec/fec.o
+	rm -f wifiraw multi-aio-raw aio-raw *~ *.o
