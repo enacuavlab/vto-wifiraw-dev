@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
 		  if (px.role) { // On Board write Telemetry (uart)
                     len_out = write(px.fd[id], udp_out, offset);  
 		  } else {      // On Ground : Telemetry (udp), Video (udp)
-                    len_out = sendto(px.fd_out[id-2], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id-2]), sizeof(struct sockaddr));
+                   len_out = sendto(px.fd_out[id-2], udp_out, offset, 0, (struct sockaddr *)&(px.addr_out[id-2]), sizeof(struct sockaddr));
 		  }
 		}
 
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
             phead->stp_n = stp_n;
                
             ssize_t dump = write(px.fd[0], udp_in + offset, len + offset1);
-	    printf("Out RAW(%ld)\n\n",dump);
+	    printf("\nOut RAW(%ld)\n\n",dump);
       
             offset += len;
             len_in -= len;

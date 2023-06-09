@@ -100,12 +100,14 @@ void init(init_t *px) {
     if (-1 == (px->fd[2]=open("/dev/ttyAMA0",O_RDWR | O_NOCTTY | O_NONBLOCK))) exit(-1);
     struct termios tty;
     if (0 != tcgetattr(px->fd[2], &tty)) exit(-1);
+    cfsetispeed(&tty,B115200);
+    cfsetospeed(&tty,B115200);
     cfmakeraw(&tty);
-    tty.c_cflag |= B115200 | CS8 | CREAD;
     if (0 != tcsetattr(px->fd[2], TCSANOW, &tty)) exit(-1);
-    cfmakeraw(&tty);
     tcflush(px->fd[2],TCIFLUSH);
     tcdrain(px->fd[2]);
+    if (px->fd[2] > px->maxfd) px->maxfd = px->fd[2];
+    FD_SET(px->fd[2], &(px->readset));
   } else {
     if (-1 == (px->fd[2]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     addr.sin_family = AF_INET;
@@ -116,9 +118,9 @@ void init(init_t *px) {
     px->addr_out[0].sin_family = AF_INET;
     px->addr_out[0].sin_port = htons(4244);
     px->addr_out[0].sin_addr.s_addr = inet_addr(addr_str);
+    if (px->fd[2] > px->maxfd) px->maxfd = px->fd[2];
+    FD_SET(px->fd[2], &(px->readset));
   }
-  if (px->fd[2] > px->maxfd) px->maxfd = px->fd[2];
-  FD_SET(px->fd[2], &(px->readset));
 
   // This is the unidirectional video socket
   if (-1 == (px->fd[3]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
