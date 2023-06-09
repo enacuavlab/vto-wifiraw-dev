@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
             phead->stp_n = stp_n;
                
-            ssize_t dump = write(px.fd_out[0], udp_in + offset, len + offset1);
+            ssize_t dump = write(px.fd[0], udp_in + offset, len + offset1);
 	    printf("Out RAW(%ld)\n\n",dump);
       
             offset += len;

@@ -109,12 +109,12 @@ void init(init_t *px) {
   } else {
     if (-1 == (px->fd[2]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(4244);
+    addr.sin_port = htons(4245);
     addr.sin_addr.s_addr = inet_addr(addr_str);
     if (-1 == bind(px->fd[2], (struct sockaddr *)&addr, sizeof(addr))) exit(-1);
     if (-1 == (px->fd_out[0]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
     px->addr_out[0].sin_family = AF_INET;
-    px->addr_out[0].sin_port = htons(4245);
+    px->addr_out[0].sin_port = htons(4244);
     px->addr_out[0].sin_addr.s_addr = inet_addr(addr_str);
   }
   if (px->fd[2] > px->maxfd) px->maxfd = px->fd[2];
