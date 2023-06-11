@@ -1,3 +1,6 @@
 [submodule "zfec"]
 	path = zfec
 	url = git@github.com:tahoe-lafs/zfec.git
+[submodule "rtl8812au"]
+	path = rtl8812au
+	url = https://github.com/aircrack-ng/rtl8812au.git
