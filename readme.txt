@@ -2,6 +2,10 @@ git clone --recurse-submodules  https://github.com/enacuavlab/vto-wifiraw-dev.gi
 
 (git clone --recurse-submodules  git@github.com:enacuavlab/vto-wifiraw-dev.git)
 
+./install.sh
+or
+./uninstall.sh
+
 -------------------------------------------------------------------------------
 src 
 -----
