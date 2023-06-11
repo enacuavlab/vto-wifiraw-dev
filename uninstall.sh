@@ -23,6 +23,6 @@ if $DKMS; then
   sudo dkms remove $drivername
 else 
   sudo make uninstall
-  sudo make dkms_install
+  sudo make clean
 fi  
 sudo rm /etc/modprobe.d/8812au.conf
