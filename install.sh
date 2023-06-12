@@ -37,7 +37,12 @@ else
     sed -i 's/CONFIG_PLATFORM_I386_PC = y/CONFIG_PLATFORM_I386_PC = n/g' Makefile
     sed -i 's/CONFIG_PLATFORM_ARM_RPI = n/CONFIG_PLATFORM_ARM_RPI = y/g' Makefile
   fi
-  sudo apt-get install linux-headers
+  if uname -r | grep -cs "5.15.61-v8+"; then
+    wget https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-firmware/raspberrypi-kernel-headers_1.20220830-1_arm64.deb
+    sudo apt-get install ./raspberrypi-kernel-headers_1.20220830-1_arm64.deb
+  else
+    sudo apt-get install linux-headers
+  fi
   make
   sudo make install
 fi  
