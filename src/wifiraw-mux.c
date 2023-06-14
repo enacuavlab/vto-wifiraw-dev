@@ -12,6 +12,8 @@ sudo ./wifiraw 0  $node
 
 */
 
+uint16_t subpayloadmaxlen[]={VIDEO_SIZE,TELEM_SIZE,TUNEL_SIZE};
+
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
@@ -27,7 +29,8 @@ int main(int argc, char *argv[]) {
   double  kbytesec;
   uint8_t udp[UDP_SIZE];
 
-  uint16_t paylen=0, subpaylen = 0, seq = 1, ret;
+  uint16_t subpaylen = 0, seq = 1, ret;
+  int32_t paylen=0;
   uint64_t stp_n,now_n,lastime_n,timeleft_n,elapse_n,start_n;
 
   struct timespec stp,timeleft,now;
@@ -118,6 +121,8 @@ int main(int argc, char *argv[]) {
 	}
       }
     }
+
+    printf("(%d)\n",paylen);
 
     if (paylen > 0) {
           

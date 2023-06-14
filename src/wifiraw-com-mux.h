@@ -69,7 +69,6 @@ typedef struct {
 #define TELEM_SIZE 200
 #define TUNEL_SIZE 200
 #define DATA_SIZE (VIDEO_SIZE + TELEM_SIZE + TUNEL_SIZE)
-uint16_t subpayloadmaxlen[]={VIDEO_SIZE,TELEM_SIZE,TUNEL_SIZE};
 
 #define MAX_RADIOTAP_HEADER_SIZE  50  // Estimated variable radiotap header on reception
 #define PKT_SIZE (MAX_RADIOTAP_HEADER_SIZE + sizeof(ieee_hdr_data) + sizeof(payhdr_t) + 3*sizeof(subpayhdr_t) + DATA_SIZE )
