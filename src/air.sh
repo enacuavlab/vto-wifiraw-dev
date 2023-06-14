@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+
 #export node wlx3c7c3fa9c1e8
 
 #$PWD/wifiraw 1 $node &
