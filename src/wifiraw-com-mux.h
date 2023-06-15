@@ -67,7 +67,7 @@ typedef struct {
 
 #define VIDEO_SIZE 1400
 #define TELEM_SIZE 200
-#define TUNEL_SIZE 200
+#define TUNEL_SIZE 1400
 #define DATA_SIZE (VIDEO_SIZE + TELEM_SIZE + TUNEL_SIZE)
 
 #define MAX_RADIOTAP_HEADER_SIZE  50  // Estimated variable radiotap header on reception

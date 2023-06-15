@@ -12,7 +12,7 @@ sudo ./wifiraw 0  $node
 
 */
 
-uint16_t subpayloadmaxlen[]={VIDEO_SIZE,TELEM_SIZE,TUNEL_SIZE};
+uint16_t subpayloadmaxlen[]={0,TUNEL_SIZE,TELEM_SIZE,VIDEO_SIZE};
 
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
@@ -58,9 +58,6 @@ int main(int argc, char *argv[]) {
       if(FD_ISSET(px.fd[id], &readset)) {
 	if (id == 0) {                                     // read raw and send to udp and/or uart
           len = read(px.fd[0], udp, FULL_PKT_SIZE);
-
-	  printf("In RAW(%ld)\n\n",len);
-
           if (len > 0) {
             clock_gettime( CLOCK_REALTIME, &now);
             u16HeaderLen = (udp[2] + (udp[3] << 8)); // get variable radiotap header size
@@ -84,12 +81,10 @@ int main(int argc, char *argv[]) {
       	      if ((seq>1) && (seqprev != seq-1)) totdrops ++;
       	      seqprev = seq;
               subpayhead = (subpayhdr_t *)(udp + pos + sizeof(payhdr_t));
+              subppay = udp + pos + sizeof(payhdr_t) + sizeof(subpayhdr_t);
 	      while (paylen > 0) {
-
                 id = subpayhead->id;
                 subpaylen = subpayhead->len;
-                subppay = (uint8_t *)(subpayhead + sizeof(subpayhdr_t));
-
 		if (id == 1) len = write(px.fd[1], subppay, subpaylen);  // On Board and Ground write Tunnel (udp)
 		else {
 		  if (px.role) { // On Board write Telemetry (uart)
@@ -98,11 +93,12 @@ int main(int argc, char *argv[]) {
                     len = sendto(px.fd_out[id-2], subppay, subpaylen, 0, (struct sockaddr *)&(px.addr_out[id-2]), sizeof(struct sockaddr));
 		  }
 		}
-
-		printf("Comming from RAW and sendto local id(%d) len_out(%ld)\n",id,len);
-
 		paylen -= (subpaylen + sizeof(subpayhdr_t));
-                if (paylen > 0) subpayhead += subpaylen;
+                if (paylen > 0) { 
+		  subpayhead = (subpayhdr_t *)((uint8_t *)(subpayhead) + subpaylen);
+                  subppay += (subpaylen + sizeof(subpayhdr_t));
+		  printf("Twice\n");
+		}
 	      }
             }
           }
@@ -111,21 +107,18 @@ int main(int argc, char *argv[]) {
 	  if (paylen == 0) subppay = udp + offset1 ;
 	  else subppay += len;
           len = read(px.fd[id], subppay + sizeof(subpayhdr_t), subpayloadmaxlen[id]);
-
-	  printf("Comming from local id(%d)  and write to RAW len(%ld)\n[",id,len);
-
           subpayhead = (subpayhdr_t *)subppay;
           subpayhead->id = id;
           subpayhead->len = len;
-	  paylen += len;
+	  paylen += (sizeof(subpayhdr_t) + len);
+
 	}
       }
     }
 
-    printf("(%d)\n",paylen);
+    if (paylen > 1403) printf("(%d)\n",paylen);
 
     if (paylen > 0) {
-          
       memcpy( udp, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
       ieee_hdr_data[9] = 5;
       memcpy( udp + sizeof(uint8_taRadiotapHeader), ieee_hdr_data, sizeof(ieee_hdr_data));
@@ -135,10 +128,7 @@ int main(int argc, char *argv[]) {
       clock_gettime( CLOCK_REALTIME, &stp);
       stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
       payhead->stp_n = stp_n;
-               
       ssize_t dump = write(px.fd[0], udp, paylen + offset1);
-      printf("\nOut RAW(%ld)\n\n",dump);
-      
       clock_gettime( CLOCK_REALTIME, &now);
       now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
       if (seq == 1) { timeleft.tv_sec = 0; timeleft.tv_nsec = 800; }
