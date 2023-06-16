@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
   uint8_t *subppay;
 
   int8_t u8Antdbm, id;
-  uint16_t u16HeaderLen, pos, datalen, seqprev=1, totrcv = 0 ;
+  uint16_t u16HeaderLen, pos, datalen, seqprev=1, totbytes = 0 ;
   uint32_t crc, crc_rx;
   uint32_t totfails = 0, totdrops = 0;
 
@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
             payhead = (payhdr_t *)(udp + pos);
             seq = payhead->seq;
             paylen = payhead->len;                          // this len do not include pay_hdr_t
+	    totbytes += paylen;
             stp_n = payhead->stp_n;
       	    datalen = sizeof(ieee_hdr_data) + sizeof(payhdr_t) + paylen; 
             const uint8_t *s = &udp[u16HeaderLen];  // compute CRC32 after radiotap header
@@ -111,7 +112,6 @@ int main(int argc, char *argv[]) {
           subpayhead->id = id;
           subpayhead->len = len;
 	  paylen += (sizeof(subpayhdr_t) + len);
-
 	}
       }
     }
@@ -129,6 +129,7 @@ int main(int argc, char *argv[]) {
       stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
       payhead->stp_n = stp_n;
       ssize_t dump = write(px.fd[0], udp, paylen + offset1);
+      totbytes += paylen;
       clock_gettime( CLOCK_REALTIME, &now);
       now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
       if (seq == 1) { timeleft.tv_sec = 0; timeleft.tv_nsec = 800; }
@@ -144,15 +145,17 @@ int main(int argc, char *argv[]) {
       lastime_n = now_n;
       while (nanosleep(&timeleft, NULL)); // Constant time delay between each packet sent
       paylen = 0;
+      seq++;
     }
   
     clock_gettime( CLOCK_REALTIME, &now);
     now_n = (now.tv_nsec + (now.tv_sec * 1000000000L));
     if (seq != 1) { // Compute cyclic byte rate
       elapse_n = now_n - start_n;
-      if (elapse_n > 1000000000L) { kbytesec = ((double)totrcv / elapse_n * 1000000); start_n = now_n; totrcv = 0; 
+      if (elapse_n > 1000000000L) { kbytesec = ((double)totbytes / elapse_n * 1000000); start_n = now_n; 
+	      printf("(%d)\n",totbytes);
+	      totbytes = 0; 
         fprintf(px.log,"kbytesec(%d)fails(%d)drops(%d)dbm(%d)\n",(uint16_t)kbytesec,totfails,totdrops,u8Antdbm); }
     } else start_n = now_n;
-    totrcv += len;
   }
 }
