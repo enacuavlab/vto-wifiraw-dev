@@ -1,15 +1,12 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -g
+CPPFLAGS=-Wall -D _GNU_SOURCE -g  -D RAW
 
-all: wifiraw-mux #wifiraw
+all: mux
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-wifiraw-mux: wifiraw-mux.o wifiraw-com-mux.o
-	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
-
-wifiraw: wifiraw.o wifiraw-com.o
+wifiraw-mux: mux.o 
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 clean:
-	rm -f wifiraw-mux wifiraw *~ *.o
+	rm -f mux *~ *.o
