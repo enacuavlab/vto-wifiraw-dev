@@ -1,11 +1,19 @@
 sudo iwlist wlan0 scan
 sudo wpa_passphrase "Androidxp" "pprzpprz" | sudo tee ./wpa_supplicant.conf
-sudo systemctl stop wpa_supplicant.servic
+sudo systemctl stop wpa_supplicant.service
 sudo wpa_supplicant -B -c ./wpa_supplicant.conf -i wlan0
 sudo dhclient wlan0
 
 sudo ip route replace default via 192.168.1.1 dev wlan0
 
+------------------------------------------------------------------
+cd /lib/modules/4.9.253-tegra/kernel/drivers/net/wireless/realtek/rtl8812au
+mv rtl8812au.ko rtl8812au.ko.ref
+
+git clone https://github.com/morrownr/8812au-20210629.git
+cd 8812au-20210629
+make
+sudo make install
 
 ------------------------------------------------------------------
 sudo make dkms_install
