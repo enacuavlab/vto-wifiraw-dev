@@ -1,3 +1,6 @@
+4.9.253-tegra (xavier nx)
+-------------------------
+
 sudo iwlist wlan0 scan
 sudo wpa_passphrase "Androidxp" "pprzpprz" | sudo tee ./wpa_supplicant.conf
 sudo systemctl stop wpa_supplicant.service
