@@ -14,6 +14,7 @@ git clone https://github.com/morrownr/8812au-20210629.git
 cd 8812au-20210629
 make
 sudo make install
+(/lib/modules/4.9.253-tegra/kernel/drivers/net/wireless/)
 
 ------------------------------------------------------------------
 sudo make dkms_install
