@@ -4,6 +4,7 @@ sudo systemctl stop wpa_supplicant.servic
 sudo wpa_supplicant -B -c ./wpa_supplicant.conf -i wlan0
 sudo dhclient wlan0
 
+sudo ip route replace default via 192.168.1.1 dev wlan0
 
 
 ------------------------------------------------------------------
