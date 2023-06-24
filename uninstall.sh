@@ -17,10 +17,10 @@ if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1;then DKMS=true; fi
 if uname -a | grep -cs "4.9.253-tegra"> /dev/null 2>&1;then DKMS=true; fi
 if $DKMS; then
   sudo sed -i  '/blacklist rtl8812au/d' /etc/modprobe.d/blacklist.conf > /dev/null 2>&1
-  drivername=`dkms status | grep 8812 | awk '{print substr($1,1,length($1)-1)"/"substr($2,1,length($2)-1)" -k "substr($3,1,length($3)-1)}'` 
+  drivername=`dkms status | grep 8812 | awk '{print substr($1,1,length($1)-1)"/"substr($2,1,length($2)-1)'` 
   echo $drivername
   sudo dkms uninstall $drivername
-  sudo dkms remove $drivername
+  sudo dkms remove $drivername --all
 else 
   sudo make uninstall
   sudo make clean
