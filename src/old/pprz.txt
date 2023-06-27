@@ -1,8 +1,0 @@
-/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/link_py.py -ac 114:127.0.0.1:4244:4245 -d /dev/ttyUSB0 -s 57600 -t xbee
-/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/link_py.py -ac 114:127.0.0.1:4240:4241 -d /dev/ttyUSB0 -s 57600 -t xbee
-
-/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/link_py.py -ac 114:127.0.0.1:4244:4245 -d /dev/ttyUSB0 -s 57600 -t xbee
-
-socat -u /dev/ttyAMA0,raw,echo=0,b115200 udp-sendto:192.168.3.1:4244
-
-sudo tcpdump -i lo -n port 4244

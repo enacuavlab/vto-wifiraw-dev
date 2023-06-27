@@ -190,12 +190,12 @@ int main(int argc, char *argv[]) {
   dev=1; maxdev=dev;   // Tunnel (one bidirectional link)
   if (0 > (fd[dev]=open("/dev/net/tun",O_RDWR))) exit(-1);
   memset(&ifr, 0, sizeof(struct ifreq));
-#if ROLE 
-  strcpy(ifr.ifr_name,"airtun"); 
-#else 
-  strcpy(ifr.ifr_name, "grdtun");
-#endif // ROLE
   ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+#if ROLE
+  strcpy(ifr.ifr_name,"airtun");
+#else
+  strcpy(ifr.ifr_name,"grdtun");
+#endif
   if (ioctl( fd[dev], TUNSETIFF, &ifr ) < 0 ) exit(-1);
   if (fd[dev]>maxfd) maxfd=fd[dev];
   FD_SET(fd[dev], &(readset_ref));
@@ -262,6 +262,16 @@ int main(int argc, char *argv[]) {
     if (fd[dev]>maxfd) maxfd=fd[dev];
     FD_SET(fd[dev], &(readset_ref));
     maxdev=dev;
+
+
+    uint16_t fd_downtelem2host;
+    struct sockaddr_in addr_downtelem2host;
+    if (-1 == (fd_downtelem2host=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+    addr_downtelem2host.sin_family = AF_INET;
+    addr_downtelem2host.sin_port = htons(4200);
+    addr_downtelem2host.sin_addr.s_addr = inet_addr(addr_str_local);
+
+
   #endif // ROLE == 2
 #else            // option on ground (two directional links)
   if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
@@ -327,6 +337,7 @@ int main(int argc, char *argv[]) {
 #else 
                 if (id==1)  len = write(fd[id], ptr + sizeof(subpayhdr_t), len);
 		else len = sendto(fd[id], ptr + sizeof(subpayhdr_t), len, 0, (struct sockaddr *)&(addr_out[id]), sizeof(struct sockaddr));
+
 #endif // ROLE
                 ptr += (len+sizeof(subpayhdr_t));
                 lensum -= (len+sizeof(subpayhdr_t));
@@ -335,6 +346,11 @@ int main(int argc, char *argv[]) {
 	    }
 	  } else {
             len = read(fd[cpt], ptr+sizeof(subpayhdr_t), UDP_SIZE);
+
+#if ROLE==2
+            if(id==3) len=sendto(fd_downtelem2host, ptr + sizeof(subpayhdr_t), len, 0, (struct sockaddr *)&(addr_downtelem2host), sizeof(struct sockaddr));
+#endif
+
             ((subpayhdr_t *)ptr)->id=cpt;
             ((subpayhdr_t *)ptr)->len=len;
     	    ptr += (len+sizeof(subpayhdr_t));
