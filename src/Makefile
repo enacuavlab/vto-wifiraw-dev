@@ -1,6 +1,6 @@
-#ROLE := BOARD_TELEM
+ROLE := BOARD_TELEM
 #ROLE := BOARD
-ROLE := GROUND
+#ROLE := GROUND
 
 
 #PROT := RAW
@@ -40,13 +40,13 @@ OSFLAG :=
 
 CPPFLAGS=-Wall -D _GNU_SOURCE -g 
 
-all: mux
+all: mux mux-hack
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS) $(OSFLAG) $(PROTFLAG) $(ROLEFLAG)
 
-wifiraw-mux: mux.o 
-	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
+mux: mux.o 
+mux-hack: mux-hack.o 
 
 clean:
-	rm -f mux *~ *.o
+	rm -f mux mux-hack *~ *.o
