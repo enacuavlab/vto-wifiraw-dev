@@ -4,8 +4,7 @@
 # Device is considered available, when in Managed mode whatever the link, 
 # or when in Monitor mode the link is down
 
-#HOME_PRJ=/home/pprz/Projects/vto-wifiraw-dev/src
-HOME_PRJ=/home/pi/Tmp
+HOME_PRJ=/home/pprz/Projects/vto-wifiraw-dev/src
 
 DEVICES=/proc/net/rtl88XXau
 FILES=/tmp/wfb_*.pid

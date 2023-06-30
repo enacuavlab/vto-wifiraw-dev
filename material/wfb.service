@@ -1,0 +1,15 @@
+[Unit]
+Description=wfb server
+After=multi-user.target
+
+[Service]
+Type=idle
+#Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/sleep 2
+ExecStart=/home/pprz/Projects/vto-wifiraw-dev/src/wfb_on.sh
+ExecReload=/home/pprz/Projects/vto-wifiraw-dev/src/wfb_on.sh
+ExecStop=/home/pprz/Projects/vto-wifiraw-dev/src/wfb_off.sh
+
+[Install]
+WantedBy=multi-user.target

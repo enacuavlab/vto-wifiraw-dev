@@ -48,3 +48,6 @@ else
   sudo make install
 fi  
 sudo cp $PROJ/material/8812au.conf /etc/modprobe.d
+sudo cp $PROJ/material/wfb.service /etc/systemd/system
+sudo systemctl enable wfb.service
+sudo systemctl start wfb.service

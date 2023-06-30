@@ -1,7 +1,6 @@
 #!/bin/bash
 
-#HOME_PRJ=/home/pprz/Projects/vto-wifiraw-dev/src
-HOME_PRJ=/home/pprz/Tmp
+HOME_PRJ=/home/pprz/Projects/vto-wifiraw-dev/src
 
 PIDFILE=/tmp/wfb_udp.pid
 touch $PIDFILE
