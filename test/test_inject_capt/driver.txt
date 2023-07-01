@@ -11,3 +11,10 @@ options 88XXau rtw_monitor_disable_1m=1
 Led NOT blinking ( rtw_led_ctrl=0 ) on startup means that rtw_monitor_disable_1m is set
 (default behaviour is blinking)
 
+-------------------------------------------------------------
+cat /sys/module/88XXau/parameters/rtw_led_ctrl
+cat /sys/module/88XXau/parameters/rtw_monitor_disable_1m
+cat /sys/module/88XXau/parameters/rtw_tx_pwr_idx_override
+
+cat /proc/net/rtl88XXau/wlx3c7c3fa9bdca/led_ctrl
+echo '1' > /proc/net/rtl88XXau/wlx3c7c3fa9bdca/led_ctrl 
