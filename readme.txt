@@ -9,7 +9,23 @@ or
 ./uninstall.sh
 
 -------------------------------------------------------------------------------
-Note:
-You may need to switchoff your usual wireless connection to have full access to this service
+Usages:
+------
+1)
+ssh pi@10.0.1.2
+
+2)
+rsync --bwlimit=5000 -B=1400 --progress -v pi@10.0.1.2://tmp/100M.log .
+(openssl rand 102400000 > /tmp/100M.log)
+
+3) 
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H264, payload=96 ! \
+rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
+
+4) 
+link_py.py -d /dev/ttyUSB0 -t xbee -s 57600 -ac 122:127.0.0.1:4244:4245
 
 -------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+Note:
+You may need to switchoff your usual wireless connection to have full access to this service
