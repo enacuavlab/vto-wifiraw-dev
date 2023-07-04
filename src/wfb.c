@@ -51,7 +51,7 @@ void build_crc32_table(void) {
 #endif 
 
 #define UDP_SIZE 65507
-#define FD_NB 2
+#define FD_NB 4
 
 typedef struct {
   uint16_t seq;
@@ -68,18 +68,26 @@ typedef struct {
 /*****************************************************************************/
 int main(int argc, char *argv[]) {
 
+#if ROLE == 0
+  uint16_t fd_out[FD_NB];
+#endif // ROLE==0
+#if !defined(RAW) || (ROLE ==0)
+  struct sockaddr_in addr_out[FD_NB];
+#endif // !defined(RAW) || (ROLE ==0)
+       
   uint8_t udp[UDP_SIZE], *ptr;
   uint16_t fd[FD_NB],fd_tun_udp,id,dev,maxdev,maxfd=0,ret,seq=1,seqprev,cpt;
   uint32_t totdrops=0;
   bool crcok = false;
   int8_t offsetraw;
   int32_t lensum=0;
-  struct sockaddr_in addr, dstaddr,addr_in[FD_NB],addr_out[FD_NB];
+  struct sockaddr_in addr, dstaddr,addr_in[FD_NB];
   struct ifreq ifr;
   ssize_t len;
   uint64_t stp_n;
   struct timespec stp;
   struct timeval timeout;
+  char *addr_str_local = "127.0.0.1";
   char *addr_str_tunnel_board = "10.0.1.2";
   char *addr_str_tunnel_ground = "10.0.1.1";
   char *addr_str_tunnel_mask = "255.255.255.0";
@@ -179,6 +187,53 @@ int main(int argc, char *argv[]) {
   if (ioctl( fd_tun_udp, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
   ifr.ifr_flags = IFF_UP ;
   if (ioctl( fd_tun_udp, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
+
+  dev=2; maxdev=dev;  // Video (one directional link)
+  if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+#if ROLE
+  addr_in[dev].sin_family = AF_INET;
+  addr_in[dev].sin_port = htons(5600);
+  addr_in[dev].sin_addr.s_addr = inet_addr(addr_str_local);
+  if (-1 == bind(fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
+  if (fd[dev]>maxfd) maxfd=fd[dev];
+  FD_SET(fd[dev], &(readset_ref));
+  maxfd=fd[dev];
+#else
+  addr_out[dev].sin_family = AF_INET;
+  addr_out[dev].sin_port = htons(5600);
+  addr_out[dev].sin_addr.s_addr = inet_addr(addr_str_local);
+#endif // ROLE  
+
+  dev=3;             // Telemetry 
+#if ROLE	     // option on board
+  #if ROLE == 2       // option with telemetry (one bidirectional link)
+    if (-1 == (fd[dev]=open(UART,O_RDWR | O_NOCTTY | O_NONBLOCK))) exit(-1);
+    struct termios tty;
+    if (0 != tcgetattr(fd[dev], &tty)) exit(-1);
+    cfsetispeed(&tty,B115200);
+    cfsetospeed(&tty,B115200);
+    cfmakeraw(&tty);
+    if (0 != tcsetattr(fd[dev], TCSANOW, &tty)) exit(-1);
+    tcflush(fd[dev],TCIFLUSH);
+    tcdrain(fd[dev]);
+    if (fd[dev]>maxfd) maxfd=fd[dev];
+    FD_SET(fd[dev], &(readset_ref));
+    maxdev=dev;
+  #endif // ROLE == 2
+#else            // option on ground (two directional links)
+  if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  addr_in[dev].sin_family = AF_INET;
+  addr_in[dev].sin_port = htons(4245);
+  addr_in[dev].sin_addr.s_addr = inet_addr(addr_str_local);
+  if (-1 == bind(fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
+  if (-1 == (fd_out[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  addr_out[dev].sin_family = AF_INET;
+  addr_out[dev].sin_port = htons(4244);
+  addr_out[dev].sin_addr.s_addr = inet_addr(addr_str_local);
+  if (fd[dev]>maxfd) maxfd=fd[dev];
+  FD_SET(fd[dev], &(readset_ref));
+  maxdev=dev;
+#endif // ROLE
 
   ptr = udp+sizeof(payhdr_t)+offsetraw;
   lensum=0;

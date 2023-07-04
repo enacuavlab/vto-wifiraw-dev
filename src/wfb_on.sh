@@ -55,7 +55,7 @@ if [ -d "$DEVICES" ]; then
     PIDFILE=/tmp/wfb_${wl}.pid
     touch $PIDFILE
     sysctl -w net.ipv6.conf.all.disable_ipv6=1
-    $HOME_PRJ/mux $wl > /dev/null 2>&1 &
+    $HOME_PRJ/wfb $wl > /dev/null 2>&1 &
     echo $! | tee -a $PIDFILE > /dev/null 2>&1 
     $HOME_PRJ/video.sh $PIDFILE > /dev/null 2>&1 &
     echo $! | tee -a $PIDFILE > /dev/null 2>&1 
