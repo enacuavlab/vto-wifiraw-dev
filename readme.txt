@@ -14,11 +14,11 @@ Usages:
 1) Remote shell
 ssh $USER@10.0.1.2
 
-2) File transfert
-rsync --bwlimit=5000 -B=1400 --progress -v $USER@10.0.1.2://tmp/100M.log .
+2) File transfert (tunnel mtu=1400)
+rsync --progress -v $USER@10.0.1.2://tmp/100M.log .
 (openssl rand 102400000 > /tmp/100M.log)
 
-3) Video streaming
+3) Video streaming (h264 parsing mtu=1400)
 gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H264, payload=96 ! \
 rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sync=false
 
