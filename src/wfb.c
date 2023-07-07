@@ -51,6 +51,7 @@ void build_crc32_table(void) {
 #endif 
 
 #define UDP_SIZE 65507
+#define PAYLOAD_SIZE 1000
 #define FD_NB 4
 
 typedef struct {
@@ -75,12 +76,12 @@ int main(int argc, char *argv[]) {
   struct sockaddr_in addr_out[FD_NB];
 #endif // !defined(RAW) || (ROLE ==0)
        
-  uint8_t udp[UDP_SIZE], *ptr;
-  uint16_t fd[FD_NB],fd_tun_udp,id,dev,maxdev,maxfd=0,ret,seq=1,seqprev,cpt;
+  uint8_t udp[UDP_SIZE], *ptr,*curr_p,*nextcurr_p;
+  uint16_t fd[FD_NB],fd_tun_udp,id,dev,maxdev,maxfd=0,ret,seq=1,seqprev,cpt,curr_cpt,cpttmp,subpaynb;
   uint32_t totdrops=0;
   bool crcok = false;
   int8_t offsetraw;
-  int32_t lensum=0;
+  int32_t lensum=0,lenpay,nextlenpay,lentmp,subpaylen[FD_NB];
   struct sockaddr_in addr, dstaddr,addr_in[FD_NB];
   struct ifreq ifr;
   ssize_t len;
@@ -183,7 +184,10 @@ int main(int argc, char *argv[]) {
   dstaddr.sin_family = AF_INET;
   memcpy(&ifr.ifr_addr,&dstaddr,sizeof(struct sockaddr));
   if (ioctl( fd_tun_udp, SIOCSIFDSTADDR, &ifr ) < 0 ) exit(-1);
-  ifr.ifr_mtu = 1400;
+
+//  ifr.ifr_mtu = 1400;
+  ifr.ifr_mtu = 700;
+
   if (ioctl( fd_tun_udp, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
   ifr.ifr_flags = IFF_UP ;
   if (ioctl( fd_tun_udp, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
@@ -236,7 +240,7 @@ int main(int argc, char *argv[]) {
 #endif // ROLE
 
   ptr = udp+sizeof(payhdr_t)+offsetraw;
-  lensum=0;
+  lensum=0;subpaynb=0;
   for(;;) {
     FD_ZERO(&readset);
     readset = readset_ref;
@@ -296,27 +300,52 @@ int main(int argc, char *argv[]) {
             ((subpayhdr_t *)ptr)->len=len;
     	    ptr += (len+sizeof(subpayhdr_t));
     	    lensum += (len+sizeof(subpayhdr_t));
+	    subpaylen[subpaynb++]=len;
           }
         }
-      }
-      if (lensum>0) {
+      }           
+
+      curr_p = udp;
+      curr_cpt = 0;
+      lenpay = lensum;
+
+      while (lensum>0) {
+
+	printf("IN(%d)",lensum);
+
+	if (lensum > PAYLOAD_SIZE ) { // The payload must be sent by subpayloads. Looking to send joined subpayloads within the PAYLOAD_SIZE
+          lentmp = 0; 
+	  for (int i=curr_cpt;i<subpaynb;i++) {
+            lentmp += (subpaylen[i]+sizeof(subpayhdr_t));
+	    cpttmp = i;
+	    if (lentmp > PAYLOAD_SIZE) break;
+	    lenpay = lentmp;
+	  }
+	  curr_cpt = cpttmp+1;
+          nextcurr_p = udp + lenpay;
+	  nextlenpay = lensum - lenpay;
+        }
+
         clock_gettime( CLOCK_REALTIME, &stp);
         stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
-        ptr=udp+offsetraw;
+        ptr = curr_p + offsetraw;
         ((payhdr_t *)ptr)->seq = seq;
-        ((payhdr_t *)ptr)->len = lensum;
+        ((payhdr_t *)ptr)->len = lenpay;
         ((payhdr_t *)ptr)->stp_n = stp_n;
 #ifdef RAW		   
-        memcpy(udp,radiotaphdr,sizeof(radiotaphdr));
+        memcpy(curr_p,radiotaphdr,sizeof(radiotaphdr));
         ieeehdr[9] = droneid;
-        memcpy(udp+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
-        len = write(fd[0], udp, lensum + sizeof(payhdr_t) + offsetraw);
+        memcpy(curr_p+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
+        len = write(fd[0], curr_p, lenpay + sizeof(payhdr_t) + offsetraw);
 #else
-        len = sendto(fd[0], udp, lensum + sizeof(payhdr_t), 0, (struct sockaddr *)&(addr_out[0]), sizeof(struct sockaddr));
+        len = sendto(fd[0], curr_p, lenpay + sizeof(payhdr_t), 0, (struct sockaddr *)&(addr_out[0]), sizeof(struct sockaddr));
 #endif // RAW
-        ptr=udp+sizeof(payhdr_t)+offsetraw;
-        lensum=0;
-        seq++;
+        lensum -= lenpay;
+
+	printf("OU(%d)\n",lensum);
+
+        if (lensum==0) { ptr = udp+sizeof(payhdr_t)+offsetraw; seq++; subpaynb=0;}
+	else { curr_p = nextcurr_p; lenpay = nextlenpay; }
       }
     }
   }
