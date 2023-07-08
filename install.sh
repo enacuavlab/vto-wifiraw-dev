@@ -47,6 +47,10 @@ else
   make
   sudo make install
 fi  
+if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1; then 
+  sudo cp $PROJ/material/wfb.conf /etc/NetworkManager/conf.d
+  sudo systemctl reload NetworkManager.service 
+fi
 sudo cp $PROJ/material/8812au.conf /etc/modprobe.d
 sudo cp $PROJ/material/wfb.service /etc/systemd/system
 sudo systemctl enable wfb.service

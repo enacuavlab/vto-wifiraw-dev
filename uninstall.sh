@@ -25,6 +25,10 @@ else
   sudo make uninstall
   sudo make clean
 fi  
+if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1; then 
+  sudo rm /etc/NetworkManager/conf.d/wfb.conf
+  sudo systemctl reload NetworkManager.service 
+fi
 sudo rm /etc/modprobe.d/8812au.conf
 sudo systemctl stop wfb.service
 sudo systemctl disable wfb.service
