@@ -50,8 +50,9 @@ void build_crc32_table(void) {
 }
 #endif 
 
+#define TUN_MTU 1400
 #define UDP_SIZE 65507
-#define PAYLOAD_SIZE 1000
+#define PAYLOAD_SIZE 1500
 #define FD_NB 4
 
 typedef struct {
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
 #endif // !defined(RAW) || (ROLE ==0)
        
   uint8_t udp[UDP_SIZE], *ptr,*curr_p,*nextcurr_p;
-  uint16_t fd[FD_NB],fd_tun_udp,id,dev,maxdev,maxfd=0,ret,seq=1,seqprev,cpt,curr_cpt,cpttmp,subpaynb;
+  uint16_t fd[FD_NB],fd_tun_udp,id,dev,maxdev,maxfd=0,ret,seqout=1,seq,seqprev,cpt,curr_cpt,cpttmp,subpaynb;
   uint32_t totdrops=0;
   bool crcok = false;
   int8_t offsetraw;
@@ -184,9 +185,7 @@ int main(int argc, char *argv[]) {
   dstaddr.sin_family = AF_INET;
   memcpy(&ifr.ifr_addr,&dstaddr,sizeof(struct sockaddr));
   if (ioctl( fd_tun_udp, SIOCSIFDSTADDR, &ifr ) < 0 ) exit(-1);
-
-//  ifr.ifr_mtu = 1400;
-  ifr.ifr_mtu = 700;
+  ifr.ifr_mtu = TUN_MTU;
 
   if (ioctl( fd_tun_udp, SIOCSIFMTU, &ifr ) < 0 ) exit(-1);
   ifr.ifr_flags = IFF_UP ;
@@ -304,17 +303,12 @@ int main(int argc, char *argv[]) {
           }
         }
       }           
-
       curr_p = udp;
       curr_cpt = 0;
       lenpay = lensum;
-
       while (lensum>0) {
-
-	printf("IN(%d)",lensum);
-
 	if (lensum > PAYLOAD_SIZE ) { // The payload must be sent by subpayloads. Looking to send joined subpayloads within the PAYLOAD_SIZE
-          lentmp = 0; 
+          lentmp = 0;                 // Consequent calls are around 46000 ns, quite under 800 ns wifi limit. 
 	  for (int i=curr_cpt;i<subpaynb;i++) {
             lentmp += (subpaylen[i]+sizeof(subpayhdr_t));
 	    cpttmp = i;
@@ -325,11 +319,10 @@ int main(int argc, char *argv[]) {
           nextcurr_p = udp + lenpay;
 	  nextlenpay = lensum - lenpay;
         }
-
         clock_gettime( CLOCK_REALTIME, &stp);
         stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
         ptr = curr_p + offsetraw;
-        ((payhdr_t *)ptr)->seq = seq;
+        ((payhdr_t *)ptr)->seq = seqout;
         ((payhdr_t *)ptr)->len = lenpay;
         ((payhdr_t *)ptr)->stp_n = stp_n;
 #ifdef RAW		   
@@ -341,10 +334,7 @@ int main(int argc, char *argv[]) {
         len = sendto(fd[0], curr_p, lenpay + sizeof(payhdr_t), 0, (struct sockaddr *)&(addr_out[0]), sizeof(struct sockaddr));
 #endif // RAW
         lensum -= lenpay;
-
-	printf("OU(%d)\n",lensum);
-
-        if (lensum==0) { ptr = udp+sizeof(payhdr_t)+offsetraw; seq++; subpaynb=0;}
+        if (lensum==0) { ptr = udp+sizeof(payhdr_t)+offsetraw; seqout++; subpaynb=0;}
 	else { curr_p = nextcurr_p; lenpay = nextlenpay; }
       }
     }
