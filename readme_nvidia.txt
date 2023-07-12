@@ -15,3 +15,10 @@ checkout v5.6.4.2
 
 ------------------------------------------------------------------
 
+/etc/NetworkManager/system-connections/...
+
+[ipv4]
+address1=192.168.2.2/24,192.168.2.1
+dns=8.8.8.8;
+dns-search=
+method=manual
