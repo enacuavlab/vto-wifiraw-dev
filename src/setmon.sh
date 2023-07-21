@@ -6,6 +6,7 @@ CHANNEL=140
 #
 # Get set given wifi dongle or look for one available
 #
+if [ "$(uname -r)" = "4.9.253-tegra" ]; then TEGRA=true; else TEGRA=false; fi
 if [ "$#" -eq 0 ]; then
   DEVICES=/proc/net/rtl88XXau
   if [ -d "$DEVICES" ]; then
