@@ -17,7 +17,8 @@ int main(int argc, char *argv[]) {
   uint32_t port = 5;
 
   struct sock_filter bpf_bytecode[] = { 
-    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2f (offset = 47) to A
+//    { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2f (offset = 47) to A
+    { 0x30,  0,  0, 0x00000029 }, // Ldb = 0x30, load one byte at position 0x29 (offset = 41) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
     { 0x06,  0,  0, 0xffffffff }, // Ret = 0x06,  accept packet => return !0 
     { 0x06,  0,  0, 0x00000000 }, // Ret = 0x06, reject packet => return 0 
@@ -52,8 +53,8 @@ int main(int argc, char *argv[]) {
   };
   if (-1 == setsockopt(fd, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
 
-  struct timespec curr;
-  uint64_t inline_stp_n, curr_n, total_nb=0, total_size=0;
+  struct timespec stp;
+  uint64_t total_nb=0, total_bytes=0,inline_stp_n,stp_n,prev_n;
   float delta_m, total_m;
   uint16_t n, u16HeaderLen,inline_len,inline_seq;
   uint8_t *pu8,payload;
@@ -71,9 +72,10 @@ int main(int argc, char *argv[]) {
         ssize_t bytes = read( fd, packetBuffer, sizeof(packetBuffer) );
   
         if (bytes >=0 ) {
-  
-          clock_gettime( CLOCK_MONOTONIC, &curr);
-  
+ 
+          clock_gettime( CLOCK_REALTIME, &stp);
+          stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+
 	  pu8 = packetBuffer; 
 
           u16HeaderLen = (pu8[2] + (pu8[3] << 8)); // variable radiotap header size
@@ -84,24 +86,29 @@ int main(int argc, char *argv[]) {
           inline_len = (((pay_hdr_t *)pu8)->len);
           inline_stp_n = (((pay_hdr_t *)pu8)->stp_n);
   
-          curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
-          delta_m = (float)(curr_n - inline_stp_n) / 1000000;
+//          curr_n = (curr.tv_nsec + (curr.tv_sec * 1000000000L));
+//          delta_m = (float)(curr_n - store_n) / 1000000;
+//	  store_n = curr_n;
+//          delta_m = (float)(curr_n - inline_stp_n) / 1000000;
   
           printf("seq(%d) len(%d)\n",inline_seq,inline_len);
           printf("stamp(%ld)\n",inline_stp_n);
           printf("delta mil(%.03f)\n",delta_m);
   
-          if (inline_seq != 0) {
-            total_m += delta_m;
-            total_size += inline_len;
+          if (inline_seq != 1) {
+//            delta_m =  (float)(stp_n - prev_n) / 1000000;
+ //           total_m += delta_m;
+            total_bytes += inline_len;
             printf("total mil[%.03f]\n",total_m);
-            printf("Mbitps(%.02f)\n",(total_size / (1000*total_m)));
+            printf("total bytes(%ld.)\n",total_bytes);
+//            printf("Mbitps(%.02f)\n",(total_bytes / (1000*total_m)));
           }
   
           printf("total nb(%ld)\n",total_nb);
   
+	  prev_n = stp_n;
           total_nb++;
-          total_size+=inline_len;
+          total_bytes+=inline_len;
           printf("----------------------------------------\n");
         }
       }

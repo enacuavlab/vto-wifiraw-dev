@@ -21,7 +21,7 @@ if $DKMS; then
   driverversion=`dkms status | grep 8812 | awk '{print substr($2,1,length($2)-1)}'` 
   driver=$drivername'/'$driverversion
   sudo dkms uninstall $driver
-  sudo dkms remove $driver --all
+  sudo dkms remove $driver
 else 
   sudo make uninstall
   sudo make clean

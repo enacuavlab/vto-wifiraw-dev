@@ -12,7 +12,8 @@ int main(int argc, char *argv[]) {
   uint16_t param_pktnb  = 2000;
   uint16_t param_pktlen = 1400;
   uint16_t param_ndelay = 800;
-  uint8_t param_bitrate = 0x5; // 0x0, 0x3  -> 0x05
+//  uint8_t param_bitrate = 0x5; // 0x0, 0x3  -> 0x05
+//  uint8_t param_bitrate = 0x3; // 0x0, 0x3  -> 0x05
   uint8_t param_portid = 5;
 
   printf("%d\n",DATA_SIZE);
@@ -38,7 +39,7 @@ int main(int argc, char *argv[]) {
   pay_hdr_t *phead;
 
   memset(buffer, 0, sizeof (buffer));
-  radiotap_hdr[27] = param_bitrate;
+//  radiotap_hdr[27] = param_bitrate;
   memcpy(buffer, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
   ieee_hdr[9] = param_portid; // Set in receiver address
   memcpy(buffer + sizeof(uint8_taRadiotapHeader), ieee_hdr, sizeof(ieee_hdr_data));
