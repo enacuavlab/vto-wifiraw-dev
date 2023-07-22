@@ -12,9 +12,15 @@ int main(int argc, char *argv[]) {
   uint16_t param_pktnb  = 2000;
   uint16_t param_pktlen = 1400;
   uint16_t param_ndelay = 800;
-//  uint8_t param_bitrate = 0x5; // 0x0, 0x3  -> 0x05
-//  uint8_t param_bitrate = 0x3; // 0x0, 0x3  -> 0x05
   uint8_t param_portid = 5;
+
+#ifdef LEGACY
+  uint8_t param_bitrate = 0x30; // (x500 Mb/s) range [0x02,0x04,0x06,0x0c,0x18,0x30,0x40,0x60,0x6c]
+  uint8_t offset = 8;
+#else 
+  uint8_t param_bitrate = 0x04; // MCS index range [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]
+  uint8_t offset = 12;
+#endif
 
   printf("%d\n",DATA_SIZE);
   if (param_pktlen >  DATA_SIZE) exit(-1);
@@ -39,7 +45,7 @@ int main(int argc, char *argv[]) {
   pay_hdr_t *phead;
 
   memset(buffer, 0, sizeof (buffer));
-//  radiotap_hdr[27] = param_bitrate;
+  radiotap_hdr[offset] = param_bitrate;
   memcpy(buffer, uint8_taRadiotapHeader, sizeof (uint8_taRadiotapHeader));
   ieee_hdr[9] = param_portid; // Set in receiver address
   memcpy(buffer + sizeof(uint8_taRadiotapHeader), ieee_hdr, sizeof(ieee_hdr_data));

@@ -1,7 +1,8 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -g
+#CPPFLAGS=-Wall -D _GNU_SOURCE -g -D LEGACY
+CPPFLAGS=-Wall -D _GNU_SOURCE -g 
 LDFLAGS=-lpcap 
 
-all: inject_pcap capt_pcap inject_raw capt_raw
+all: inject_raw capt_raw # inject_pcap capt_pcap 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
