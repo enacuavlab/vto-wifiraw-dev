@@ -6,7 +6,9 @@ echo -n > $DUMPFILE
 
 CHAN=()
 
-if [ "$(uname -r)" = "4.9.253-tegra" ]; then TEGRA=true; else TEGRA=false; fi
+TEGRA=false
+if [ "$(uname -r)" = "5.19.0-46-generic" ]; then TEGRA=true; fi
+if [ "$(uname -r)" = "4.9.253-tegra" ]; then TEGRA=true; fi
 if [ -d "$DEVICES" ]; then
   dirs=( "$DEVICES"/*/ )
   for d in "${dirs[0]}"; do
