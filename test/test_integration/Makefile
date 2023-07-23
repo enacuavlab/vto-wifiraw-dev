@@ -1,19 +1,15 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -g
-LDFLAGS=-lpcap 
+CPPFLAGS=-Wall -D _GNU_SOURCE -g 
 
-all: wifiraw #multi-aio-raw #aio-raw
+all: wfb_tx_video wfb_rx_video
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS)
 
-wifiraw: wifiraw.o wifiraw-com.o
+wfb_tx_video: wfb_tx_video.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
-multi-aio-raw: multi-aio-raw.o multi-aio-raw-com.o
-	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
-
-aio-raw: aio-raw.o aio-raw-com.o
+wfb_rx_video: wfb_rx_video.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 clean:
-	rm -f wifiraw multi-aio-raw aio-raw *~ *.o
+	rm -f wfb_tx_video wfb_rx_video *~ *.o
