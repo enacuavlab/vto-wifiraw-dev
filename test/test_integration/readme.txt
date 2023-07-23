@@ -13,4 +13,4 @@ From PI
 -------
 gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=30/1  ! timeoverlay !  v4l2h264enc extra-controls="controls,video_bitrate=4000000"  !  video/x-h264,level="(string)4" ! rtph264pay mtu=1400 config-interval=-1 ! udpsink port=5600 host=127.0.0.1
 
-socat udp-listen:5600,reuseaddr,fork udp-sendto:192.168.2.1:5700
+socat -b1400 udp-listen:5600,reuseaddr,fork udp-sendto:192.168.2.1:5700
