@@ -33,3 +33,4 @@ fi
 sudo rm /etc/modprobe.d/8812au.conf
 sudo systemctl stop wfb.service
 sudo systemctl disable wfb.service
+sudo rm /etc/systemd/system/wfb.service
