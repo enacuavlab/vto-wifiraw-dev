@@ -1,3 +1,7 @@
+sudo ./inject_raw $done
+sudo ./capt_raw $done
+
+-----------------------------------------------------
 svpcom rtl8812au driver patch, is speed optimized (*)
 Legacy drops very few packets up to 0x6c (54 Mb/s)
 MCS drops few packets up to index 6 (58,5 Mb/s)
