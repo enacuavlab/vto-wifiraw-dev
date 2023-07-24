@@ -1,9 +1,16 @@
-CPPFLAGS=-Wall -D _GNU_SOURCE -g 
+PROT := RAW
+
+PROTFLAG :=
+  ifeq ($(PROT),RAW)
+    PROTFLAG += -DRAW
+  endif
+
+CPPFLAGS=-Wall -D _GNU_SOURCE -g
 
 all: wfb_tx_video wfb_rx_video
 
 %.o: %.c
-	gcc -c -o $@ $< $(CPPFLAGS)
+	gcc -c -o $@ $< $(CPPFLAGS) $(PROTFLAG)
 
 wfb_tx_video: wfb_tx_video.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)

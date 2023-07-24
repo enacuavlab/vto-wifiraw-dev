@@ -68,24 +68,21 @@ typedef struct {
 int main(int argc, char *argv[]) {
 
   struct sockaddr_in addr_out[FD_NB];
-  uint8_t udp[UDP_SIZE], *ptr, *ptrhd;
+  uint8_t udp[UDP_SIZE], *ptrhd;
   uint16_t fd[FD_NB],dev,maxdev,maxfd=0,ret,seq,seqprev,id,subpaynb;
-  uint32_t totdrops=0;
   bool crcok = false;
-  int8_t offsetraw,antdbm;
+  int8_t antdbm;
   int32_t lensum=0;
   struct ifreq ifr;
   ssize_t len;
-  struct timeval timeout;
   char *addr_str_local = "127.0.0.1";
 
   fd_set readset_ref,readset;
   FD_ZERO(&readset_ref);
 
   dev=0; maxdev=dev; 
+#ifdef RAW
   uint16_t datalen, radiotapvar,pos;
-  uint32_t crc, crc_rx;
-  uint32_t totfails = 0;
   int8_t droneid = 5;
   struct sock_filter bpf_bytecode[] = { 
     { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
@@ -117,8 +114,14 @@ int main(int argc, char *argv[]) {
     printf("----\n");
   };
   if (-1 == setsockopt(fd[dev], SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
-  offsetraw=(sizeof(radiotaphdr)+sizeof(ieeehdr));
   build_crc32_table();
+#else
+  struct sockaddr_in addr_in[1];
+  if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  addr_in[dev].sin_family = AF_INET;
+  addr_in[dev].sin_port = htons(5100);
+  if (-1 == bind(fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
+#endif // def RAW
   if (fd[dev]>maxfd) maxfd=fd[dev];
   FD_SET(fd[dev], &(readset_ref));
   maxfd=fd[dev];
@@ -129,8 +132,14 @@ int main(int argc, char *argv[]) {
   addr_out[dev].sin_port = htons(5700);
   addr_out[dev].sin_addr.s_addr = inet_addr(addr_str_local);
 
-  ptr = udp+sizeof(payhdr_t)+offsetraw;
   lensum=0;subpaynb=0;
+
+  uint32_t crc, crc_rx, drops=0, fails=0;
+  uint64_t stp_n,stp_prev_n=0,inter_n=0,lentot=0,timetot_n=0;
+  float byterate=0.0,minrate=0.0,maxrate=0.0;
+  struct timeval timeout;
+  struct timespec stp;
+
   for(;;) {
     FD_ZERO(&readset);
     readset = readset_ref;
@@ -142,9 +151,11 @@ int main(int argc, char *argv[]) {
         if(FD_ISSET(fd[cpt], &readset)) {
           if (cpt == 0) {         
             len = read(fd[0], udp, UDP_SIZE);
-
-            printf("IN (%ld)\n",len);
-
+            clock_gettime( CLOCK_MONOTONIC, &stp);
+            stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+            if (stp_prev_n != 0) inter_n = stp_n - stp_prev_n;
+            stp_prev_n = stp_n;
+#ifdef RAW
             radiotapvar = (udp[2] + (udp[3] << 8)); // get variable radiotap header size
             pos = radiotapvar + sizeof(ieeehdr);
     	    antdbm = udp[31];
@@ -159,22 +170,38 @@ int main(int argc, char *argv[]) {
               crc=(crc>>8)^crc32_table[t];
             }
       	    memcpy(&crc_rx, &udp[len - 4], sizeof(crc_rx)); // CRC32 : last four bytes
-            if (~crc != crc_rx) {totfails ++;crcok=false;}
+            if (~crc != crc_rx) {fails ++;crcok=false;}
 	    else crcok = true;
       	    ptrhd=udp+pos+sizeof(payhdr_t);
+#else
+            payhdr_p = (payhdr_t *)(udp);
+            lensum = payhdr_p->len;
+            crcok = true;
+            ptrhd=udp+sizeof(payhdr_t);
+#endif // RAW
 	    if (crcok) {
               seq = payhdr_p->seq; 
-              if ((seq>1) && (seqprev != seq-1)) totdrops ++;
+              stp_n = payhdr_p->stp_n; 
+              if ((seq>1) && (seqprev != seq-1)) drops ++;
        	      seqprev = seq;
       	      if (lensum>0) {
                 id = ((subpayhdr_t *)ptrhd)->id;
                 len = ((subpayhdr_t *)ptrhd)->len;
 		len = sendto(fd[id], ptrhd + sizeof(subpayhdr_t), len, 0, (struct sockaddr *)&(addr_out[id]), sizeof(struct sockaddr));
-
-		printf("(%d) OUT (%ld)\n",totdrops,len);
-
+		lentot += len;
+                timetot_n += inter_n;
   	      }
 	    }
+
+            if (inter_n != 0) {
+              byterate = (1000.0 * (float)len / ((float)inter_n));
+            }
+            if (minrate == 0.0) minrate=byterate;
+            if (maxrate == 0.0) maxrate=byterate;
+            if (byterate < minrate) minrate = byterate;
+            if (byterate > maxrate) maxrate = byterate;
+            printf("(%d)(%ld)(%ld)(%d)(%d)(%f)(%f)\n",seq,len,stp_n,drops,fails,(float)(inter_n / 1000000.0),byterate);
+            printf("(%f)(%f)(%f)\n",(1000.0 * (float)lentot / ((float)timetot_n)),minrate,maxrate);
 	  } 
         }
       }           

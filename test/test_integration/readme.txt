@@ -1,6 +1,22 @@
+Using RAW (wifidongle)
+
+Makefile (PROT := RAW)
 sudo ./wfb_tx_video $node
 sudo ./wfb_rx_video $node
 
+=> not constant timed output 
+TODO Try "smooth" ouput
+
+-------------------------------------------
+Not using RAW (udp 5600)
+
+Makefile (#PROT := RAW)
+sudo ./wfb_tx_video
+sudo ./wfb_rx_video
+
+=> no latency
+
+-------------------------------------------
 
 From PC
 -------

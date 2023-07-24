@@ -60,9 +60,6 @@ int main(int argc, char *argv[]) {
   struct ifreq ifr;
   struct sockaddr_ll sll;
   ssize_t len;
-  uint64_t stp_n;
-  struct timespec stp;
-  struct timeval timeout;
 
   char *addr_str_local = "127.0.0.1";
 
@@ -74,6 +71,7 @@ int main(int argc, char *argv[]) {
   uint16_t protocol = htons(ETH_P_ALL); 
 
   dev=0; maxdev=dev; 
+#ifdef RAW
   if (-1 == (fd[dev] = socket(AF_PACKET,SOCK_RAW,protocol))) exit(-1);
   if (-1 == (flags = fcntl(fd[dev], F_GETFL))) exit(-1);
   if (-1 == (fcntl(fd[dev], F_SETFL, flags | O_NONBLOCK))) exit(-1);
@@ -85,6 +83,13 @@ int main(int argc, char *argv[]) {
   sll.sll_protocol = htons( ETH_P_ALL );          // Bind is mandatory to send !?
   if((bind( fd[dev], (struct sockaddr *)&sll, sizeof(sll))) == -1) exit(-1);
   offsetraw=(sizeof(radiotaphdr)+sizeof(ieeehdr));
+#else
+  struct sockaddr_in addr_out[1];
+  if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  addr_out[dev].sin_family = AF_INET;
+  addr_out[dev].sin_port = htons(5100);
+  offsetraw = 0;
+#endif // def RAW
 
   dev=2; maxdev=dev;  // Video (one directional link)
   if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
@@ -100,6 +105,11 @@ int main(int argc, char *argv[]) {
   ptr = udp+sizeof(payhdr_t)+offsetraw;
   lensum=0;
 
+  struct timespec stp;
+  struct timeval timeout;
+  uint64_t stp_n,stp_prev_n=0,inter_n=0,lentot=0,timetot_n=0;
+  float byterate=0.0,minrate=0.0,maxrate=0.0;
+
   for(;;) {
     FD_ZERO(&readset);
     readset = readset_ref;
@@ -110,7 +120,6 @@ int main(int argc, char *argv[]) {
       for (int cpt = 0; cpt < (maxdev+1); cpt++) {
         if(FD_ISSET(fd[cpt], &readset)) {
           len = read(fd[cpt], ptr+sizeof(subpayhdr_t), fdsize[cpt]);
-	  printf("IN %ld\n",len);
           ((subpayhdr_t *)ptr)->id=cpt;
           ((subpayhdr_t *)ptr)->len=len;
           lensum = (len+sizeof(subpayhdr_t));
@@ -124,15 +133,32 @@ int main(int argc, char *argv[]) {
       ((payhdr_t *)ptrhd)->seq = seqout;
       ((payhdr_t *)ptrhd)->len = lensum;
       ((payhdr_t *)ptrhd)->stp_n = stp_n;
+#ifdef RAW
       memcpy(udp,radiotaphdr,sizeof(radiotaphdr));
       ieeehdr[9] = droneid;
       memcpy(udp+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
       len = write(fd[0], udp, lensum + sizeof(payhdr_t) + offsetraw);
-
-      printf("OUT %ld\n",len);
+#else
+      len = sendto(fd[0], udp, lensum + sizeof(payhdr_t), 0, (struct sockaddr *)&(addr_out[0]), sizeof(struct sockaddr));
+#endif // RAW
+      if (stp_prev_n != 0) inter_n = stp_n - stp_prev_n;
+      stp_prev_n = stp_n;
+      if (inter_n != 0) {
+        byterate = (1000.0 * (float)lensum / ((float)inter_n));
+      }
+      if (minrate == 0.0) minrate=byterate;
+      if (maxrate == 0.0) maxrate=byterate;
+      if (byterate < minrate) minrate = byterate;
+      if (byterate > maxrate) maxrate = byterate;
+      lentot += lensum;
+      timetot_n += inter_n;
+      printf("(%d)(%d)(%ld)(%f)(%f)\n",seqout,lensum,stp_n,(float)(inter_n / 1000000.0),byterate);
+      printf("(%f)(%f)(%f)\n",(1000.0 * (float)lentot / ((float)timetot_n)),minrate,maxrate);
 
       lensum=0;
       seqout++;
+
+      // usleep delay is done by the delay of inputs 
     }
   }
 }
