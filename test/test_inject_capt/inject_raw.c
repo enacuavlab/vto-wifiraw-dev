@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
   uint8_t param_bitrate = 0x30; // (x500 Mb/s) range [0x02,0x04,0x06,0x0c,0x18,0x30,0x40,0x60,0x6c]
   uint8_t offset = 8;
 #else 
-  uint8_t param_bitrate = 0x04; // MCS index range [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]
+  uint8_t param_bitrate = 0x02; // MCS index range [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07]
   uint8_t offset = 12;
 #endif
 
@@ -51,10 +51,11 @@ int main(int argc, char *argv[]) {
   memcpy(buffer + sizeof(uint8_taRadiotapHeader), ieee_hdr, sizeof(ieee_hdr_data));
 
   struct timespec stp;
-  uint64_t stp_n;
+  uint64_t stp_n,stp_prev_n=0,inter_n=0,lentot=0,timetot_n=0;
   uint16_t r,seq=1,packet_size = PKT_SIZE_0;
   uint16_t offset0 = sizeof(uint8_taRadiotapHeader)+sizeof(ieee_hdr_data);
   uint16_t offset1 = offset0 + sizeof(pay_hdr_t);
+  float byterate=0.0,minrate=0.0,maxrate=0.0;
 
   for(int i = 1; i <= param_pktnb; i++) {
 
@@ -70,17 +71,27 @@ int main(int argc, char *argv[]) {
 
     clock_gettime( CLOCK_MONOTONIC, &stp);
     stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+    if (stp_prev_n != 0) inter_n = stp_n - stp_prev_n;
+    stp_prev_n = stp_n;
 
     phead->stp_n = stp_n;
+
+    lentot += param_pktlen;
+    timetot_n += inter_n;
 
     r = write(fd, buffer, packet_size);
     if (r != packet_size) exit(-1);
 
-    printf("(%d)(%d)\n",seq,param_pktlen);
-    printf("(%ld)\n",stp_n);
-    printf("number of packets sent = %d\r", i);
-    printf("\n");
-    fflush(stdout);
+    if (inter_n != 0) {
+      byterate = (1000.0 * (float)param_pktlen / ((float)inter_n));
+    }
+    if (minrate == 0.0) minrate=byterate;
+    if (maxrate == 0.0) maxrate=byterate;
+    if (byterate < minrate) minrate = byterate;
+    if (byterate > maxrate) maxrate = byterate;
+
+    printf("(%d)(%d)(%ld)(%f)(%f)\n",seq,param_pktlen,stp_n,(float)(inter_n / 1000000.0),byterate);
+    printf("(%f)(%f)(%f)\n",(1000.0 * (float)lentot / ((float)timetot_n)),minrate,maxrate);
 
     seq++;
     usleep(param_ndelay);

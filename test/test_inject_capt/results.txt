@@ -1,6 +1,17 @@
 sudo ./inject_raw $done
 sudo ./capt_raw $done
 
+packet payload size: 1400 bytes
+delay between each packet sent: 800 ns
+average throughput with minimal packet lost: 1.5 Mbytes/s
+
+note:
+- should be enought for 12 Mbit/s video
+- 16 lost per sec
+- MCS 2,3,4 does not change throughput (?!)
+
+
+-----------------------------------------------------
 -----------------------------------------------------
 svpcom rtl8812au driver patch, is speed optimized (*)
 Legacy drops very few packets up to 0x6c (54 Mb/s)
