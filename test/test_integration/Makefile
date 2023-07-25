@@ -1,7 +1,10 @@
-PROT := RAW
+#PROT := RAW
 
-PROTFLAG :=
-  ifeq ($(PROT),RAW)
+PROTFLAG := 
+  ifneq ($(PROT),RAW)
+    PROTFLAG += -DADDR_REMOTE_BOARD=\"192.168.3.2\"
+    PROTFLAG += -DADDR_REMOTE_GROUND=\"192.168.3.1\"
+  else
     PROTFLAG += -DRAW
   endif
 

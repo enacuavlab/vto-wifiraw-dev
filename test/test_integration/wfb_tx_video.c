@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
   if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
   addr_out[dev].sin_family = AF_INET;
   addr_out[dev].sin_port = htons(5100);
+  addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_REMOTE_GROUND);
   offsetraw = 0;
 #endif // def RAW
 
@@ -159,6 +160,7 @@ int main(int argc, char *argv[]) {
       seqout++;
 
       // usleep delay is done by the delay of inputs 
+      usleep(800);
     }
   }
 }

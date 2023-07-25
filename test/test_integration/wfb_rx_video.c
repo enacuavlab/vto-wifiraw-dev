@@ -120,6 +120,7 @@ int main(int argc, char *argv[]) {
   if (-1 == (fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
   addr_in[dev].sin_family = AF_INET;
   addr_in[dev].sin_port = htons(5100);
+  addr_in[dev].sin_addr.s_addr = inet_addr(ADDR_REMOTE_GROUND); 
   if (-1 == bind(fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
 #endif // def RAW
   if (fd[dev]>maxfd) maxfd=fd[dev];
