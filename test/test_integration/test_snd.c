@@ -53,7 +53,6 @@ static uint8_t ieeehdr[] = {
 #define DRONEID	5
 #else
 #define ONLINE_SIZE ( sizeof(payhdr_t) + sizeof(subpayhdr_t) + MTU )
-#define ADDR_REMOTE_GROUND "192.168.3.1"
 #endif // RAW
 
 /*****************************************************************************/
@@ -101,18 +100,19 @@ int main(int argc, char *argv[]) {
   struct timespec stp;
   struct timeval timeout;
   uint8_t onlinebuff[ONLINE_SIZE];
-  uint8_t *ptrIn=(onlinebuff+offset+sizeof(payhdr_t)+sizeof(subpayhdr_t));
-  uint8_t *ptr=ptrIn;
+  uint8_t *ptr0=(onlinebuff+offset+sizeof(payhdr_t)+sizeof(subpayhdr_t));
+  uint8_t *ptr=ptr0;
   ssize_t len;
   uint16_t ret,seq=0;;
-  uint64_t stp_n;
+  uint64_t stp_n,stp_prev_n=0,inter_n=0,lentot=0,timetot_n=0;
+  float byterate=0.0,minrate=0.0,maxrate=0.0;
   for(;;) {
     FD_ZERO(&readset);
     readset = readset_ref;
     timeout.tv_sec = 1; timeout.tv_usec = 0;
     ret = select(fd_in+1, &readset, NULL, NULL, &timeout);
     if (ret == 1) {
-      ptr = ptrIn;
+      ptr = ptr0;
       len = read(fd_in, ptr, MTU);
 
       clock_gettime( CLOCK_REALTIME, &stp);
@@ -127,17 +127,28 @@ int main(int argc, char *argv[]) {
       ((payhdr_t *)ptr)->len = len + sizeof(subpayhdr_t);
       ((payhdr_t *)ptr)->stp_n = stp_n;
 
-      seq++;
-
-      printf("(%d)\n",len);
 #ifdef RAW
       memcpy(onlinebuff,radiotaphdr,sizeof(radiotaphdr));
       memcpy(onlinebuff+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
-      len = write(fd_out, onlinebuff, sizeof(radiotaphdr)+sizeof(ieeehdr)+sizeof(payhdr_t)+sizeof(subpayhdr_t)+len);
-      // usleep ?
+      write(fd_out, onlinebuff, sizeof(radiotaphdr)+sizeof(ieeehdr)+sizeof(payhdr_t)+sizeof(subpayhdr_t)+len);
+      // 800 ns sleep delay is within the inputs delays
 #else
-      len = sendto(fd_out, onlinebuff, sizeof(payhdr_t)+sizeof(subpayhdr_t)+len, 0, (struct sockaddr *)&(addr_out), sizeof(struct sockaddr));
+      sendto(fd_out, onlinebuff, sizeof(payhdr_t)+sizeof(subpayhdr_t)+len, 0, (struct sockaddr *)&(addr_out), sizeof(struct sockaddr));
 #endif // RAW
+
+      if (stp_prev_n != 0) inter_n = stp_n - stp_prev_n;
+      stp_prev_n = stp_n;
+      if (inter_n != 0) byterate = (1000.0 * (float)len / ((float)inter_n));
+      if (minrate == 0.0) minrate=byterate;
+      if (maxrate == 0.0) maxrate=byterate;
+      if (byterate < minrate) minrate = byterate;
+      if (byterate > maxrate) maxrate = byterate;
+      lentot += len;
+      timetot_n += inter_n;
+      printf("(%d)(%ld)(%ld)(%f)(%f)\n",seq,len,stp_n,(float)(inter_n / 1000000.0),byterate);
+      printf("(%f)(%f)(%f)\n",(1000.0 * (float)lentot / ((float)timetot_n)),minrate,maxrate);
+
+      seq++;
     }
   }
 }

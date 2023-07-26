@@ -1,4 +1,5 @@
-declare -a usbwifidongles=(wlx3c7c3fa9bdc6 wlx3c7c3fa9bfb6)
+declare -a usbwifidongles=(wlx3c7c3fa9bfb6)
+#declare -a usbwifidongles=(wlx3c7c3fa9bdc6 wlx3c7c3fa9bfb6)
 #declare -a usbwifidongles=(wlxfc349725a319)
 
 for dongle in "${usbwifidongles[@]}"

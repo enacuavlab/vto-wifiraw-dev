@@ -11,6 +11,7 @@ gcc ./test_rcv.c -o test_rcv -DRAW
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define MTU 1400
 #define ADDR_LOCAL "127.0.0.1"
@@ -57,13 +58,12 @@ void build_crc32_table(void) {
   }
 }
 // ONLINE8SIZE on RAW receveiver should be large enought to retrieve variable size radiotap header
-#define RADIOTAP_HEADER_MAX_SIZE 30
+#define RADIOTAP_HEADER_MAX_SIZE 50
 #define ONLINE_SIZE ( RADIOTAP_HEADER_MAX_SIZE + sizeof(ieeehdr) + sizeof(payhdr_t) + sizeof(subpayhdr_t) + MTU )
 #define DRONEID 5
 #define ADDR_LOCAL "127.0.0.1"
 #else  
 #define ONLINE_SIZE ( sizeof(payhdr_t) + sizeof(subpayhdr_t) + MTU )
-#define ADDR_REMOTE_GROUND "192.168.3.1"
 #endif // RAW
 
 
@@ -109,10 +109,9 @@ int main(int argc, char *argv[]) {
   };
   if (-1 == setsockopt(fd_in, SOL_SOCKET, SO_ATTACH_FILTER, &bpf_program, sizeof(bpf_program))) exit(-1);
   build_crc32_table();
-  uint16_t datalen, radiotapvar,pos;
-  int8_t antdbm;
+  uint16_t datalen, radiotapvar;
+  int8_t antdbm,offset;
   uint32_t crc, crc_rx;
-  uint32_t fails = 0;
 #else
   if (-1 == (fd_in=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
   addr_in.sin_family = AF_INET;
@@ -127,13 +126,16 @@ int main(int argc, char *argv[]) {
   addr_out.sin_port = htons(5700);
   addr_out.sin_addr.s_addr = inet_addr(ADDR_LOCAL);
 
+  struct timespec stp;
   struct timeval timeout;
   uint8_t onlinebuff[ONLINE_SIZE],*ptr;
   bool crcok = false;
   ssize_t len;
   uint8_t id;
-  uint16_t ret,seq;
-  uint64_t stp_n;
+  uint16_t ret,seq,seqprev;
+  uint32_t fails=0,drops=0;
+  uint64_t stp_i,stp_n,stp_prev_n=0,inter_n=0,lentot=0,timetot_n=0;
+  float byterate=0.0,minrate=0.0,maxrate=0.0;
   for(;;) {
     FD_ZERO(&readset);
     readset = readset_ref;
@@ -141,14 +143,12 @@ int main(int argc, char *argv[]) {
     ret = select(fd_in+1, &readset, NULL, NULL, &timeout);
     if (ret == 1) {
       len = read(fd_in, onlinebuff, ONLINE_SIZE);
-      printf("(%ld)\n",len);
 
 #ifdef RAW	
-
       radiotapvar = (onlinebuff[2] + (onlinebuff[3] << 8)); // get variable radiotap header size
-      pos = radiotapvar + sizeof(ieeehdr);
+      offset = radiotapvar + sizeof(ieeehdr);
       antdbm = onlinebuff[31];
-      datalen = sizeof(ieeehdr) + sizeof(payhdr_t) + ((payhdr_t *)(onlinebuff + pos))->len;
+      datalen = sizeof(ieeehdr) + sizeof(payhdr_t) + ((payhdr_t *)(onlinebuff + offset))->len;
       const uint8_t *s = &onlinebuff[radiotapvar];  // compute CRC32 after radiotap header
       crc=0xFFFFFFFF;
       for(uint32_t i=0;i<datalen;i++) {
@@ -159,22 +159,40 @@ int main(int argc, char *argv[]) {
       memcpy(&crc_rx, &onlinebuff[len - 4], sizeof(crc_rx)); // CRC32 : last four bytes
       if (~crc != crc_rx) {fails ++;crcok=false;}
       else crcok = true;
-      ptr=onlinebuff+pos+sizeof(payhdr_t);
+      ptr=onlinebuff+offset;
 #else
       ptr=onlinebuff;
       crcok = true;
 #endif // RAW
 
       if (crcok) {      
+
         seq = ((payhdr_t *)ptr)->seq;
         len = ((payhdr_t *)ptr)->len;
-        stp_n = ((payhdr_t *)ptr)->stp_n;
+        stp_i = ((payhdr_t *)ptr)->stp_n;
         ptr+=sizeof(payhdr_t);
         id = ((subpayhdr_t *)ptr)->id;
         len = ((subpayhdr_t *)ptr)->len;
         ptr+=sizeof(subpayhdr_t);
-        len = sendto(fd_out, ptr, len, 0, (struct sockaddr *)&(addr_out), sizeof(struct sockaddr));
+        sendto(fd_out, ptr, len, 0, (struct sockaddr *)&(addr_out), sizeof(struct sockaddr));
+
+        if ((seq>1) && (seqprev != seq-1)) drops ++;
+       	seqprev = seq;
+	lentot += len;
+        clock_gettime( CLOCK_MONOTONIC, &stp);
+        stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
+        if (stp_prev_n != 0) inter_n = stp_n - stp_prev_n;
+        stp_prev_n = stp_n;
+        timetot_n += inter_n;
       }
+
+      if (inter_n != 0) byterate = (1000.0 * (float)len / ((float)inter_n));
+      if (minrate == 0.0) minrate=byterate;
+      if (maxrate == 0.0) maxrate=byterate;
+      if (byterate < minrate) minrate = byterate;
+      if (byterate > maxrate) maxrate = byterate;
+      printf("(%d)(%ld)(%ld)(%d)(%d)(%f)(%f)\n",seq,len,stp_i,drops,fails,(float)(inter_n / 1000000.0),byterate);
+      printf("(%f)(%f)(%f)\n",(1000.0 * (float)lentot / ((float)timetot_n)),minrate,maxrate);
     }
   }
 }
