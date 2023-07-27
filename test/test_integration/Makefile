@@ -9,13 +9,10 @@ PROTFLAG :=
 
 CPPFLAGS=-Wall -D _GNU_SOURCE -g
 
-all: test_rcv_multi # test_rcv test_snd
+all: test_rcv test_snd
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS) $(PROTFLAG)
-
-test_rcv_multi: test_rcv_multi.o
-	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 test_rcv: test_rcv.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)

@@ -39,7 +39,7 @@ static uint8_t radiotaphdr[] =  {
   0x0d, 0x00,             // radiotap header length
   0x00, 0x80, 0x08, 0x00, // radiotap present flags:  RADIOTAP_TX_FLAGS + RADIOTAP_MCS
   0x08, 0x00,             // RADIOTAP_F_TX_NOACK
-  0x07, 0x00, 0x04,       // MCS flags (0x07), 0x0, rate index (0x05)
+  0x07, 0x00, 0x02,       // MCS flags (0x07), 0x0, rate index (0x05)
 };
 static uint8_t ieeehdr[] = {
   0x08, 0x01,                         // Frame Control : Data frame from STA to DS
