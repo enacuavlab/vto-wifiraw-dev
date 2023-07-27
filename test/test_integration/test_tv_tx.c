@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
       ptr = ptr0;
       len = read(fd_in, ptr, MTU);
 
-      clock_gettime( CLOCK_REALTIME, &stp);
+      clock_gettime( CLOCK_MONOTONIC, &stp);
       stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
       ptr-=sizeof(subpayhdr_t);

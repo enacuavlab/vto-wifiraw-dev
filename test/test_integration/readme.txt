@@ -1,20 +1,17 @@
 Using RAW (wifidongle)
 
 Makefile (PROT := RAW)
-sudo ./wfb_tx_video $node
-sudo ./wfb_rx_video $node
-
-=> not constant timed output 
-TODO Try "smooth" ouput
+sudo ./test_tv_tx $node
+sudo ./test_tv_rx $node
+sudo ./test_tun $node
 
 -------------------------------------------
-Not using RAW (udp 5600)
+Not using RAW (udp 5100)
 
 Makefile (#PROT := RAW)
-sudo ./wfb_tx_video
-sudo ./wfb_rx_video
-
-=> no latency
+sudo ./test_tv_tx
+sudo ./test_tv_rx
+sudo ./test_tun
 
 -------------------------------------------
 
@@ -34,9 +31,13 @@ gst-launch-1.0 libcamerasrc ! video/x-raw,width=1280,height=720,framerate=30/1,f
 socat -b1400 udp-listen:5600,reuseaddr,fork udp-sendto:192.168.2.1:5700
 
 --------------------------------------------
---------------------------------------------
-vto-wifiraw-dev/src_0
+-------------------------------------------
+Check temperature is under 40°c
+External fan must be needed !!
 
-gst-launch-1.0 libcamerasrc ! video/x-raw,width=1280,height=720,framerate=30/1,format=NV12,interlace-mode=progressive,colorimetry=bt709 ! timeoverlay ! v4l2h264enc extra-controls="controls,repeat_sequence_header=1,video_bitrate=4000000" ! video/x-h264,level="(string)4"  ! fdsink | sudo ./tx -b 8 -r 4 -f 1400 -d 12 -t 1 -y 0 wlan1
+/opt/vc/bin/vcgencmd measure_temp
+cat /sys/class/thermal/thermal_zone0/temp
 
-sudo ./rx -b 8 -r 4 -f 1450 wlx3c7c3fa9bfb6 | gst-launch-1.0 fdsrc ! h264parse ! avdec_h264 ! videoconvert ! autovideosink sync=false
+-------------------------------------------
+Check temperature is under 40°c
+Set MCS index of 2
