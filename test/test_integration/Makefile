@@ -28,15 +28,16 @@ ROLEFLAG :=
 
 CPPFLAGS=-Wall -D _GNU_SOURCE -g
 
-all: test_tun #  test_tv_tx test_tv_rx
+all: wfb #test_tun #  test_tv_tx test_tv_rx
 
 %.o: %.c
 	gcc -c -o $@ $< $(CPPFLAGS) $(PROTFLAG) $(ROLEFLAG)
 
+test_tun: wfb.o
 test_tun: test_tun.o
 test_tv_tx: test_tv_tx.o
 test_tv_rx: test_tv_rx.o
 	gcc -o $@ $^ $(LDFLAGS) $(CPPFLAGS)
 
 clean:
-	rm -f test_tun test_tv_tx test_tv_rx *~ *.o
+	rm -f wfb test_tun test_tv_tx test_tv_rx *~ *.o
