@@ -17,7 +17,7 @@
 #include <sys/ioctl.h>
 
 
-#define FD_NB 2
+#define FD_NB 3
 #define ONLINE_MTU 1400
 #define TUN_MTU 1400
 #define ADDR_LOCAL "127.0.0.1"
@@ -87,6 +87,7 @@ typedef struct {
 /*****************************************************************************/
 void wfb_init(init_t *param) {
 
+  struct sockaddr_in addr_in[FD_NB];
   struct ifreq ifr;
   uint16_t dev; 
 
@@ -129,7 +130,6 @@ void wfb_init(init_t *param) {
   ieeehdr[9] = DRONEID;
 #else
   param->offsetraw=0;
-  struct sockaddr_in addr_in[FD_NB];
 #if ROLE
   addr_in[dev].sin_addr.s_addr = inet_addr(ADDR_REMOTE_BOARD); 
   param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_REMOTE_GROUND); 
@@ -182,6 +182,23 @@ void wfb_init(init_t *param) {
   if (ioctl( fd_tun_udp, SIOCSIFFLAGS, &ifr ) < 0 ) exit(-1);
   FD_SET(param->fd[dev], &(param->readset));
   if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
+
+
+  dev=2;   // Video (one unidirectional link)
+  if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+#if ROLE
+  addr_in[dev].sin_family = AF_INET;
+  addr_in[dev].sin_port = htons(5600);
+  addr_in[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+  if (-1 == bind(param->fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in))) exit(-1);
+  FD_SET(param->fd[dev], &(param->readset));
+  param->maxfd=param->fd[dev];
+#else
+  param->addr_out[dev].sin_family = AF_INET;
+  param->addr_out[dev].sin_port = htons(5700);
+  param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+#endif // ROLE
+
 }
 
 #endif // WFB_H 

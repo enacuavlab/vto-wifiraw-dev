@@ -64,8 +64,12 @@ int main(int argc, char *argv[]) {
               id = ((subpayhdr_t *)ptr)->id;
               len = ((subpayhdr_t *)ptr)->len;
               ptr+=sizeof(subpayhdr_t);
+#if ROLE
               write(param.fd[1], ptr, len);
-      
+#else
+	      if (id==1)  write(param.fd[1], ptr, len);
+	      len = sendto(param.fd[id],ptr,len,0,(struct sockaddr *)&(param.addr_out[id]), sizeof(struct sockaddr));
+#endif // ROLE
               if ((seq>1) && (seq_prev != seq-1)) drops ++;
               seq_prev = seq;
             }
@@ -73,7 +77,7 @@ int main(int argc, char *argv[]) {
 
             ptr = onlinebuff+(param.offsetraw);
 
-            len = read(param.fd[1], ptr+sizeof(payhdr_t)+sizeof(subpayhdr_t), ONLINE_SIZE-(param.offsetraw)-sizeof(payhdr_t)-sizeof(subpayhdr_t));
+            len = read(param.fd[cpt], ptr+sizeof(payhdr_t)+sizeof(subpayhdr_t), ONLINE_SIZE-(param.offsetraw)-sizeof(payhdr_t)-sizeof(subpayhdr_t));
 	    clock_gettime( CLOCK_MONOTONIC, &stp);
             stp_n = (stp.tv_nsec + (stp.tv_sec * 1000000000L));
 
@@ -82,7 +86,7 @@ int main(int argc, char *argv[]) {
             (((payhdr_t *)ptr)->stp_n) = stp_n;
 
             ptr += sizeof(payhdr_t);
-            (((subpayhdr_t *)ptr)->id) = 1;
+            (((subpayhdr_t *)ptr)->id) = cpt;
             (((subpayhdr_t *)ptr)->len) = len;
 #ifdef RAW                 
             memcpy(onlinebuff,radiotaphdr,sizeof(radiotaphdr));

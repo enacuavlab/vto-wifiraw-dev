@@ -2,7 +2,7 @@
 #ROLE := BOARD
 ROLE := GROUND
 
-#PROT := RAW
+PROT := RAW
 
 # DO NOT TOUCH BELOW THIS LINE
 # ----------------------------
