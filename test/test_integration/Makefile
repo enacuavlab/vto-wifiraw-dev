@@ -26,12 +26,22 @@ ROLEFLAG :=
  endif
 
 
+OSFLAG :=
+  ifeq ($(ROLE),BOARD_TELEM)
+    UNAME_R := $(shell uname -r)
+    ifeq ($(UNAME_R),4.9.253-tegra)
+      OSFLAG = -DUART=\"/dev/ttyTHS1\"
+    else ifeq ($(UNAME_R),6.1.21-v8+)
+      OSFLAG = -DUART=\"/dev/ttyAMA0\"
+    endif
+  endif
+
 CPPFLAGS=-Wall -D _GNU_SOURCE -g
 
 all: wfb #test_tun #  test_tv_tx test_tv_rx
 
 %.o: %.c
-	gcc -c -o $@ $< $(CPPFLAGS) $(PROTFLAG) $(ROLEFLAG)
+	gcc -c -o $@ $< $(CPPFLAGS) $(OSFLAG) $(PROTFLAG) $(ROLEFLAG)
 
 test_tun: wfb.o
 test_tun: test_tun.o

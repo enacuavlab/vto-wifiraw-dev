@@ -17,7 +17,7 @@
 #include <sys/ioctl.h>
 
 
-#define FD_NB 3
+#define FD_NB 4
 #define ONLINE_MTU 1400
 #define TUN_MTU 1400
 #define ADDR_LOCAL "127.0.0.1"
@@ -32,6 +32,11 @@ typedef struct {
   uint8_t id;
   uint16_t len; // len for the subpayload not including (sub_pay_hdr_t)
 } __attribute__((packed)) subpayhdr_t;
+
+
+#if ROLE == 2
+#include <termios.h>
+#endif // ROLE == 2
 
 #ifdef RAW
 #include <net/ethernet.h>
@@ -197,6 +202,36 @@ void wfb_init(init_t *param) {
   param->addr_out[dev].sin_family = AF_INET;
   param->addr_out[dev].sin_port = htons(5700);
   param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+#endif // ROLE
+
+
+  dev=3;             // Telemetry 
+#if ROLE             // option on board
+#if ROLE == 2       // option with telemetry (one bidirectional link)
+  if (-1 == (param->fd[dev]=open(UART,O_RDWR | O_NOCTTY | O_NONBLOCK))) exit(-1);
+  struct termios tty;
+  if (0 != tcgetattr(param->fd[dev], &tty)) exit(-1);
+  cfsetispeed(&tty,B115200);
+  cfsetospeed(&tty,B115200);
+  cfmakeraw(&tty);
+  if (0 != tcsetattr(param->fd[dev], TCSANOW, &tty)) exit(-1);
+  tcflush(param->fd[dev],TCIFLUSH);
+  tcdrain(param->fd[dev]);
+  FD_SET(param->fd[dev], &(param->readset));
+  if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
+#endif // ROLE == 2
+#else            // option on ground (two directional links)
+  if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  addr_in[dev].sin_family = AF_INET;
+  addr_in[dev].sin_port = htons(4245);
+  addr_in[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+  if (-1 == bind(param->fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
+//  if (-1 == (fd_out[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  param->addr_out[dev].sin_family = AF_INET;
+  param->addr_out[dev].sin_port = htons(4244);
+  param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+  FD_SET(param->fd[dev], &(param->readset));
+  if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
 #endif // ROLE
 
 }

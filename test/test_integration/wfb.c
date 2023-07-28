@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
               len = ((subpayhdr_t *)ptr)->len;
               ptr+=sizeof(subpayhdr_t);
 #if ROLE
-              write(param.fd[1], ptr, len);
+              write(param.fd[id], ptr, len);
 #else
 	      if (id==1)  write(param.fd[1], ptr, len);
 	      len = sendto(param.fd[id],ptr,len,0,(struct sockaddr *)&(param.addr_out[id]), sizeof(struct sockaddr));
