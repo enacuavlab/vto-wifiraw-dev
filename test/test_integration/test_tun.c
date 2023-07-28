@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
     timeout.tv_sec = 1; timeout.tv_usec = 0;
     ret = select(maxfd + 1, &readset, NULL, NULL, &timeout);
     if (ret >0) {
-      for (int cpt = 0; cpt < (maxfd+1); cpt++) {
+      for (int cpt = 0; cpt < FD_NB; cpt++) {
         if(FD_ISSET(fd[cpt], &readset)) {
           if (cpt == 0) {
             len = read(fd[0], onlinebuff, ONLINE_SIZE);
@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
 #ifdef RAW                 
             memcpy(onlinebuff,radiotaphdr,sizeof(radiotaphdr));
             memcpy(onlinebuff+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
-	    len = write(fd[0],onlinebuff,offset+sizeof(payhdr_t)+sizeof(subpayhdr_t)+len);
+	    len = write(fd[0],onlinebuff,offsetraw+sizeof(payhdr_t)+sizeof(subpayhdr_t)+len);
 #else
 	    len = sendto(fd[0],onlinebuff+offsetraw,sizeof(payhdr_t)+sizeof(subpayhdr_t)+len,0,(struct sockaddr *)&(addr_out[0]), sizeof(struct sockaddr));
 #endif // RAW

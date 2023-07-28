@@ -3,17 +3,13 @@ Using RAW (wifidongle)
 Makefile (PROT := RAW)
 sudo ./test_tv_tx $node
 sudo ./test_tv_rx $node
-sudo ./test_tun $node
 
--------------------------------------------
 Not using RAW (udp 5100)
 
 Makefile (#PROT := RAW)
 sudo ./test_tv_tx
 sudo ./test_tv_rx
-sudo ./test_tun
 
--------------------------------------------
 
 From PC
 -------
@@ -29,6 +25,33 @@ gst-launch-1.0 videotestsrc ! video/x-raw,width=1280,height=720,framerate=30/1  
 gst-launch-1.0 libcamerasrc ! video/x-raw,width=1280,height=720,framerate=30/1,format=NV12,interlace-mode=progressive,colorimetry=bt709 ! timeoverlay ! v4l2h264enc extra-controls="controls,video_bitrate=4000000" ! video/x-h264,level="(string)4" ! rtph264pay mtu=1400 config-interval=-1 ! udpsink port=5600 host=127.0.0.1
 
 socat -b1400 udp-listen:5600,reuseaddr,fork udp-sendto:192.168.2.1:5700
+
+-------------------------------------------------------------------------------
+Using RAW (wifidongle) 
+
+Makefile (PROT := RAW)
+(GROUND) sudo ./test_tun $node
+sudo  sysctl -w net.ipv6.conf.all.disable_ipv6=1
+(BOARD) sudo ./test_tun $node
+sudo  sysctl -w net.ipv6.conf.all.disable_ipv6=1
+
+Not using RAW (udp 5100) 
+
+Makefile (#PROT := RAW)
+(GROUND) sudo ./test_tun
+(BOARD) sudo ./test_tun 
+
+ssh pi@10.0.1.2
+openssl rand 102400000 > /tmp/100M.log
+htop
+
+rsync -vP --bwlimit=5000  $USER@10.0.1.2:/tmp/100M.log .
+
+PROT:=RAW
+    102.400.000 100%    1,50MB/s    0:01:04 (xfr#1, to-chk=0/1)
+
+#PROT:=RAW
+    102.400.000 100%    4,90MB/s    0:00:19 (xfr#1, to-chk=0/1)
 
 --------------------------------------------
 -------------------------------------------
