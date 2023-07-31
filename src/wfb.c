@@ -113,12 +113,13 @@ int main(int argc, char *argv[]) {
               ptr = &onlinebuff[cpt][0]+(param.offsetraw);
               (((payhdr_t *)ptr)->seq) = seq_out;
               (((payhdr_t *)ptr)->stp_n) = stp_n;
+              len = (((payhdr_t *)ptr)->len);
   #ifdef RAW                 
               memcpy(&onlinebuff[cpt][0],radiotaphdr,sizeof(radiotaphdr));
               memcpy(&onlinebuff[cpt][0]+sizeof(radiotaphdr),ieeehdr,sizeof(ieeehdr));
-      	      len = write(param.fd[0],&onlinebuff[cpt][0],(param.offsetraw)+sizeof(payhdr_t)+sizeof(subpayhdr_t)+len);
+      	      len = write(param.fd[0],&onlinebuff[cpt][0],(param.offsetraw)+sizeof(payhdr_t)+len);
   #else
-      	      len = sendto(param.fd[0],&onlinebuff[cpt][0]+(param.offsetraw),sizeof(payhdr_t)+sizeof(subpayhdr_t)+len,0,(struct sockaddr *)&(param.addr_out[0]), sizeof(struct sockaddr));
+      	      len = sendto(param.fd[0],&onlinebuff[cpt][0]+(param.offsetraw),sizeof(payhdr_t)+len,0,(struct sockaddr *)&(param.addr_out[0]), sizeof(struct sockaddr));
   #endif // RAW
               lentab[cpt]=0;
       	      seq_out++;
