@@ -85,6 +85,7 @@ typedef struct {
   fd_set readset;
   uint16_t maxfd;
   uint16_t fd[FD_NB];
+  uint16_t fd_teeuart;
   int8_t  offsetraw;
   struct sockaddr_in addr_out[FD_NB];
 } init_t;
@@ -219,6 +220,7 @@ void wfb_init(init_t *param) {
   tcdrain(param->fd[dev]);
   FD_SET(param->fd[dev], &(param->readset));
   if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
+  if (-1 == (param->fd_teeuart=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
 #endif // ROLE == 2
 #else            // option on ground (two directional links)
   if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
@@ -226,12 +228,12 @@ void wfb_init(init_t *param) {
   addr_in[dev].sin_port = htons(4245);
   addr_in[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
   if (-1 == bind(param->fd[dev], (struct sockaddr *)&addr_in[dev], sizeof(addr_in[dev]))) exit(-1);
-  param->addr_out[dev].sin_family = AF_INET;
-  param->addr_out[dev].sin_port = htons(4244);
-  param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
   FD_SET(param->fd[dev], &(param->readset));
   if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
 #endif // ROLE
+  param->addr_out[dev].sin_family = AF_INET;
+  param->addr_out[dev].sin_port = htons(4244);
+  param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
 
 }
 

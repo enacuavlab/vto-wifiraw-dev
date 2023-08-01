@@ -86,6 +86,13 @@ int main(int argc, char *argv[]) {
             (((subpayhdr_t *)ptr)->len) = len;
             lentab[cpt] = len;
 	    datatosend=true;
+
+#ifdef RAW	
+#if ROLE == 2   
+      	   if (cpt==3) sendto(param.fd_teeuart,&onlinebuff[cpt][0]+(param.offsetraw)+sizeof(payhdr_t)+sizeof(subpayhdr_t),len,0,(struct sockaddr *)&(param.addr_out[cpt]), sizeof(struct sockaddr));
+#endif // ROLE == 2
+#endif // RAW
+
 	  }
 	}
       }
