@@ -3,7 +3,7 @@
 ROLE := GROUND
 
 
-PROT := RAW
+#PROT := RAW
 #PROT := 
 
 

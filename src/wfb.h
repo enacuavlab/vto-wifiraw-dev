@@ -17,7 +17,6 @@
 #include <sys/ioctl.h>
 
 
-#define FD_NB 4
 #define ONLINE_MTU 1450
 #define TUN_MTU 1400
 #define ADDR_LOCAL "127.0.0.1"
@@ -33,6 +32,26 @@ typedef struct {
   uint16_t len; // len for the subpayload not including (sub_pay_hdr_t)
 } __attribute__((packed)) subpayhdr_t;
 
+typedef struct {
+  int8_t antdbm;
+  uint16_t temp;
+  uint32_t fails;
+  uint32_t drops;
+  uint32_t sent;
+  uint32_t rate;
+} __attribute__((packed)) wfb_t;
+
+typedef enum { RAW_FD, WFB_FD, TUN_FD, VID_FD, TEL_FD, FD_NB } cannal_t;
+
+typedef struct {
+  char *node;
+  fd_set readset;
+  uint16_t maxfd;
+  uint16_t fd[FD_NB];
+  uint16_t fd_teeuart;
+  int8_t  offsetraw;
+  struct sockaddr_in addr_out[FD_NB];
+} init_t;
 
 #if ROLE == 2
 #include <termios.h>
@@ -71,7 +90,7 @@ void build_crc32_table(void) {
     crc32_table[i]=crc;
   }
 }
-// ONLINE8SIZE on RAW receveiver should be large enought to retrieve variable size radiotap header
+// ONLINE_MTU on RAW receveiver should be large enought to retrieve variable size radiotap header
 #define RADIOTAP_HEADER_MAX_SIZE 50
 #define ONLINE_SIZE ( RADIOTAP_HEADER_MAX_SIZE + sizeof(ieeehdr) + sizeof(payhdr_t) + sizeof(subpayhdr_t) + ONLINE_MTU )
 #define DRONEID 5
@@ -79,16 +98,6 @@ void build_crc32_table(void) {
 #else  
 #define ONLINE_SIZE ( sizeof(payhdr_t) + sizeof(subpayhdr_t) + ONLINE_MTU )
 #endif // RAW
-
-typedef struct {
-  char *node;
-  fd_set readset;
-  uint16_t maxfd;
-  uint16_t fd[FD_NB];
-  uint16_t fd_teeuart;
-  int8_t  offsetraw;
-  struct sockaddr_in addr_out[FD_NB];
-} init_t;
 
 /*****************************************************************************/
 void wfb_init(init_t *param) {
@@ -99,7 +108,7 @@ void wfb_init(init_t *param) {
 
   FD_ZERO(&(param->readset));
 
-  dev=0;
+  dev=RAW_FD;
 #ifdef RAW                 
   struct sock_filter bpf_bytecode[] = { 
     { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
@@ -154,7 +163,17 @@ void wfb_init(init_t *param) {
   param->maxfd=param->fd[dev];
 
 
-  dev=1;   // Tunnel (one bidirectional link)
+  dev=WFB_FD;   // One bidireactional wfb telemetry
+#if ROLE
+#else
+  if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
+  param->addr_out[dev].sin_family = AF_INET;
+  param->addr_out[dev].sin_port = htons(5000);
+  param->addr_out[dev].sin_addr.s_addr = inet_addr(ADDR_LOCAL);
+#endif // ROLE
+
+
+  dev=TUN_FD;   // Tunnel (one bidirectional link)
   memset(&ifr, 0, sizeof(struct ifreq));
   struct sockaddr_in addr, dstaddr;
   uint16_t fd_tun_udp;
@@ -190,7 +209,7 @@ void wfb_init(init_t *param) {
   if ((param->fd[dev])>(param->maxfd)) param->maxfd=param->fd[dev];
 
 
-  dev=2;   // Video (one unidirectional link)
+  dev=VID_FD;   // Video (one unidirectional link)
   if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);
 #if ROLE
   addr_in[dev].sin_family = AF_INET;
@@ -206,7 +225,7 @@ void wfb_init(init_t *param) {
 #endif // ROLE
 
 
-  dev=3;             // Telemetry 
+  dev=TEL_FD;             // Telemetry 
 #if ROLE             // option on board
 #if ROLE == 2       // option with telemetry (one bidirectional link)
   if (-1 == (param->fd[dev]=open(UART,O_RDWR | O_NOCTTY | O_NONBLOCK))) exit(-1);
