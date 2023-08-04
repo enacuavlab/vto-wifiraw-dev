@@ -92,8 +92,9 @@ int main(int argc, char *argv[]) {
               if ((seq>1) && (seq_prev != seq-1)) wfb.drops ++;
               seq_prev = seq;
               lensum = ((payhdr_t *)ptr)->len;
+              ptr+=sizeof(payhdr_t);
+
 	      while (lensum>0) {
-                ptr+=sizeof(payhdr_t);
                 id = ((subpayhdr_t *)ptr)->id;
                 len = ((subpayhdr_t *)ptr)->len;
 		lensum -= (len + sizeof(subpayhdr_t));
@@ -109,6 +110,7 @@ int main(int argc, char *argv[]) {
                   printf("GROUND (%d)(%d)(%d)(%d)(%d)(%d)\n",wfb.temp,wfb.antdbm,wfb.fails, wfb.drops,wfb.sent, wfb.rate);
 		}
 #endif // ROLE
+                ptr+=len;
 	      }
             }
           } else {
@@ -150,11 +152,6 @@ int main(int argc, char *argv[]) {
 	datatosend=false;
         for (int cpt = (RAW_FD+1); cpt < FD_NB; cpt++) {
 	  if (lentab[cpt]!=0) {
-/*
-
-TODO Check why mixing with TEL 
-goes wrong on WFB
-
 	    for (int i=cpt+1;i<FD_NB;i++) {
 	      if (lentab[i]!=0) {
                 if (lentab[cpt]+lentab[i] < ONLINE_MTU) { // join packets to send whithin payload size 
@@ -168,7 +165,6 @@ goes wrong on WFB
 		} 
 	      }
 	    }
-*/
 	    if (lentab[cpt]!=0) { // make sure current packet have not been joined
               ptr = &onlinebuff[cpt][0]+(param.offsetraw);
               (((payhdr_t *)ptr)->seq) = seq_out;
