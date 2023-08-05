@@ -163,7 +163,7 @@ void wfb_init(init_t *param) {
   param->maxfd=param->fd[dev];
 
 
-  dev=WFB_FD;   // One bidireactional wfb telemetry
+  dev=WFB_FD;   // One unidirectional wfb telemetry
 #if ROLE
 #else
   if (-1 == (param->fd[dev]=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP))) exit(-1);

@@ -51,9 +51,9 @@ int main(int argc, char *argv[]) {
     if (sto_n == 0) sto_n = stp_n;
     else if ((stp_n - sto_n) > 1000000000L) { sto_n = stp_n; wfbtosend=true; }
 #endif  // ROLE
-    for (int cpt = 0; cpt < FD_NB; cpt++) {
+    for (int cpt = RAW_FD; cpt < FD_NB; cpt++) {
 #if ROLE
-      if (((ret==0)&&(cpt==WFB_FD)&&wfbtosend) || ((ret>0)&&FD_ISSET(param.fd[cpt], &readset))) {
+      if (((ret==0)&&(cpt==WFB_FD)&&wfbtosend) || ((ret>0)&&(cpt!=WFB_FD)&&FD_ISSET(param.fd[cpt], &readset))) {
 #else
       if ((ret>0)&&FD_ISSET(param.fd[cpt], &readset)) {
 #endif // ROLE
@@ -171,8 +171,6 @@ int main(int argc, char *argv[]) {
             lentab[cpt]=0;
             seq_out++;
   	    wfb.sent=seq_out;
-
-	    printf("SENT\n");
   	  }
         }
       }
