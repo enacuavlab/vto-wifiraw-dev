@@ -15,7 +15,6 @@ int main(int argc, char *argv[]) {
   memset(&wfb,0,sizeof(wfb_t));
 
 #ifdef RAW
-  uint8_t id;
   uint16_t datalen, radiotapvar;
   int8_t offset;
   uint32_t crc, crc_rx;
@@ -53,9 +52,9 @@ int main(int argc, char *argv[]) {
 #endif  // ROLE
     for (int cpt = RAW_FD; cpt < FD_NB; cpt++) {
 #if ROLE
-      if (((ret==0)&&(cpt==WFB_FD)&&wfbtosend) || ((ret>0)&&(cpt!=WFB_FD)&&FD_ISSET(param.fd[cpt], &readset))) {
+      if (((ret==0)&&(cpt==WFB_FD)&&wfbtosend) || (ret>0)) {
 #else
-      if ((ret>0)&&FD_ISSET(param.fd[cpt], &readset)) {
+      if  ((ret>0)&&(param.fd[cpt]!=0)&&FD_ISSET(param.fd[cpt], &readset)) {
 #endif // ROLE
         if ((cpt==RAW_FD)&&FD_ISSET(param.fd[cpt], &readset)) {
           len = read(param.fd[RAW_FD], &onlinebuff[cpt][0], ONLINE_SIZE);
@@ -118,8 +117,9 @@ int main(int argc, char *argv[]) {
             printf("(%d)(%d)(%d(%d(%d)(%d)\n",wfb.temp,wfb.antdbm,wfb.fails,wfb.drops,wfb.sent,wfb.rate);
 	  } 
 #endif // ROLE
-	  if ((cpt!=WFB_FD)&&FD_ISSET(param.fd[cpt], &readset)) len = read(param.fd[cpt], &onlinebuff[cpt][0]+(param.offsetraw)+sizeof(payhdr_t)+sizeof(subpayhdr_t),
-  			                                                   ONLINE_SIZE-(param.offsetraw)-sizeof(payhdr_t)-sizeof(subpayhdr_t));
+	  if ((param.fd[cpt]!=0)&&FD_ISSET(param.fd[cpt], &readset)) len = read(param.fd[cpt], 
+	    &onlinebuff[cpt][0]+(param.offsetraw)+sizeof(payhdr_t)+sizeof(subpayhdr_t),ONLINE_SIZE-(param.offsetraw)-sizeof(payhdr_t)-sizeof(subpayhdr_t));
+
 	  if (len>0) {
             ptr=&onlinebuff[cpt][0]+(param.offsetraw);
             (((payhdr_t *)ptr)->len) = len + sizeof(subpayhdr_t);;
@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
             lentab[cpt] = len;
     	    datatosend=true;
 	  }
-#ifdef RAW      
+#ifdef RAW
 #if ROLE == 2   
           if ((cpt==TEL_FD)&&FD_ISSET(param.fd[cpt], &readset)) sendto(param.fd_teeuart,&onlinebuff[cpt][0]+(param.offsetraw)+sizeof(payhdr_t)+sizeof(subpayhdr_t),len,0,
 			                                               (struct sockaddr *)&(param.addr_out[cpt]), sizeof(struct sockaddr));

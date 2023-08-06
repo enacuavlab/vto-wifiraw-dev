@@ -107,9 +107,10 @@ void wfb_init(init_t *param) {
   uint16_t dev; 
 
   FD_ZERO(&(param->readset));
+  memset(&(param->fd),0,FD_NB*sizeof(uint16_t));
 
   dev=RAW_FD;
-#ifdef RAW                 
+#ifdef RAW
   struct sock_filter bpf_bytecode[] = { 
     { 0x30,  0,  0, 0x0000002c }, // Ldb = 0x30, load one byte at position 0x2c (offset = 44) to A
     { 0x15,  0,  1, 0x00000000 }, // Jeq = 0x15, if A equal port_id (updated while run) then proceed next line, else jump one line
@@ -179,7 +180,7 @@ void wfb_init(init_t *param) {
   uint16_t fd_tun_udp;
   char *addr_str_tunnel_board = "10.0.1.2";
   char *addr_str_tunnel_ground = "10.0.1.1";
-#if ROLE 
+#if ROLE
   strcpy(ifr.ifr_name,"airtun");
   addr.sin_addr.s_addr = inet_addr(addr_str_tunnel_board);
   dstaddr.sin_addr.s_addr = inet_addr(addr_str_tunnel_ground);
