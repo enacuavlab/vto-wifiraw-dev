@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 #if ROLE
       if (((ret==0)&&(cpt==WFB_FD)&&wfbtosend) || (ret>0)) {
 #else
-      if  ((ret>0)&&(param.fd[cpt]!=0)&&FD_ISSET(param.fd[cpt], &readset)) {
+      if (ret>0) {
 #endif // ROLE
         if ((cpt==RAW_FD)&&FD_ISSET(param.fd[cpt], &readset)) {
           len = read(param.fd[RAW_FD], &onlinebuff[cpt][0], ONLINE_SIZE);
