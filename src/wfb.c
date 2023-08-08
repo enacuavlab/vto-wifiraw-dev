@@ -91,10 +91,11 @@ int main(int argc, char *argv[]) {
 	      lensum -= (len + sizeof(subpayhdr_t));
               ptr+=sizeof(subpayhdr_t);
 #if ROLE
-              write(param.fd[id], ptr, len);
+	      if((id==TUN_FD)||(id==TEL_FD)) write(param.fd[id], ptr, len);
+              else lensum=0;
 #else
 	      if (id==TUN_FD)  write(param.fd[TUN_FD], ptr, len);
-              len = sendto(param.fd[id],ptr,len,0,(struct sockaddr *)&(param.addr_out[id]), sizeof(struct sockaddr));
+	      else len = sendto(param.fd[id],ptr,len,0,(struct sockaddr *)&(param.addr_out[id]), sizeof(struct sockaddr));
               if (id==WFB_FD) {
                 printf("BOARD  (%d)(%d)(%d)(%d)(%d)(%d)\n",((wfb_t *)ptr)->temp,((wfb_t *)ptr)->antdbm,((wfb_t *)ptr)->fails,
 				                           ((wfb_t *)ptr)->drops,((wfb_t *)ptr)->sent,((wfb_t *)ptr)->rate);
