@@ -14,6 +14,14 @@ CHANNEL=36
 
 WLS=()
 
+
+# Case of load / unload
+for filename in /tmp/wfb_*.pid; do
+  kill `cat $filename` > /dev/null 2>&1 
+  rm $filename  > /dev/null 2>&1 
+done
+
+
 if [ "$(uname -r)" = "4.9.253-tegra" ]; then TEGRA=true; else TEGRA=false; fi
 if [ -d "$DEVICES" ]; then
   dirs=( "$DEVICES"/*/ )

@@ -53,5 +53,7 @@ if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1; then
 fi
 sudo cp $PROJ/material/8812au.conf /etc/modprobe.d
 sudo cp $PROJ/material/wfb.service /etc/systemd/system
+sudo cp $PROJ/material/60-wfb.rules /etc/udev/rules.d
+sudo udevadm control --reload-rules
 sudo systemctl enable wfb.service
 sudo systemctl start wfb.service
