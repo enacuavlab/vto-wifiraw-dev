@@ -17,7 +17,7 @@ if [ -d "$DEVICES" ]; then
       if [[ $(iwconfig $wl | grep -c "Mode:Monitor") == 1 ]]; then WLS+=($wl); fi
     else
        ty=`iw dev $wl info | grep "type" | awk '{print $2}'`
-       if [[ $ty = "monitor" ]]; then WLS+=($wl); fi
+       if [[ $ty == "monitor" ]]; then WLS+=($wl); fi
     fi
   done
   if [ -n "$WLS" ]; then

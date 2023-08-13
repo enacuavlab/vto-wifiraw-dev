@@ -9,8 +9,8 @@ HOME_PRJ=/home/pprz/Projects/vto-wifiraw-dev/src
 DEVICES=/proc/net/rtl88XXau
 FILES=/tmp/wfb_*.pid
 
-CHANNEL=140
-#CHANNEL=36
+#CHANNEL=140
+CHANNEL=36
 
 WLS=()
 
@@ -26,7 +26,7 @@ if [ -d "$DEVICES" ]; then
       fi
     else
        ty=`iw dev $wl info | grep "type" | awk '{print $2}'`
-       if [[ $ty = "managed" ]]; then WLS+=($wl);
+       if [[ $ty == "managed" ]]; then WLS+=($wl);
         else
           if [[ $(ifconfig | grep -c $wl) == 0 ]]; then WLS+=($wl); fi
 	fi
@@ -57,7 +57,7 @@ if [ -d "$DEVICES" ]; then
     sysctl -w net.ipv6.conf.all.disable_ipv6=1
     $HOME_PRJ/wfb $wl > /dev/null 2>&1 &
     echo $! | tee -a $PIDFILE > /dev/null 2>&1 
-    $HOME_PRJ/video.sh $PIDFILE > /dev/null 2>&1 &
-    echo $! | tee -a $PIDFILE > /dev/null 2>&1 
+#    $HOME_PRJ/video.sh $PIDFILE > /dev/null 2>&1 &
+#    echo $! | tee -a $PIDFILE > /dev/null 2>&1 
   fi
 fi
