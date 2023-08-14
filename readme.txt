@@ -25,6 +25,12 @@ rtph264depay ! h264parse ! queue ! avdec_h264 !  videoconvert ! autovideosink sy
 4) Telemetry-datalink
 link_py.py -d /dev/ttyUSB0 -t xbee -s 57600 -ac 122:127.0.0.1:4244:4245
 
+5) Payload-datalink
+socat udp-listen:5800,reuseaddr,fork -
+socat - udp-sendto:5900
+
+etc ...
+
 -------------------------------------------------------------------------------
 -------------------------------------------------------------------------------
 Note:
