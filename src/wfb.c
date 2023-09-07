@@ -63,17 +63,19 @@ int main(int argc, char *argv[]) {
           offset = radiotapvar + sizeof(ieeehdr);
           wfb.antdbm = onlinebuff[cpt][31];
           datalen = sizeof(ieeehdr) + sizeof(payhdr_t) + ((payhdr_t *)(onlinebuff[cpt] + offset))->len;
-          const uint8_t *s = &onlinebuff[cpt][radiotapvar];  // compute CRC32 after radiotap header
-          crc=0xFFFFFFFF;
-          for(uint32_t i=0;i<datalen;i++) {
-            uint8_t ch=s[i];
-            uint32_t t=(ch^crc)&0xFF;
-            crc=(crc>>8)^crc32_table[t];
-          }
-          memcpy(&crc_rx, &onlinebuff[cpt][len - 4], sizeof(crc_rx)); // CRC32 : last four bytes
-          if (~crc != crc_rx) {wfb.fails ++;crcok=false;}
-          else crcok = true;
-          ptr=&onlinebuff[cpt][0]+offset;
+	  if (datalen <= ONLINE_MTU) {
+            const uint8_t *s = &onlinebuff[cpt][radiotapvar];  // compute CRC32 after radiotap header
+            crc=0xFFFFFFFF;
+            for(uint32_t i=0;i<datalen;i++) {
+              uint8_t ch=s[i];
+              uint32_t t=(ch^crc)&0xFF;
+              crc=(crc>>8)^crc32_table[t];
+            }
+            memcpy(&crc_rx, &onlinebuff[cpt][len - 4], sizeof(crc_rx)); // CRC32 : last four bytes
+            if (~crc != crc_rx) {wfb.fails ++;crcok=false;}
+            else crcok = true;
+            ptr=&onlinebuff[cpt][0]+offset;
+	  } else {wfb.fails ++;crcok=false;}
 #else
           ptr=&onlinebuff[cpt][0];
           crcok = true;
