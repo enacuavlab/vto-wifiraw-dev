@@ -1,1 +1,2 @@
 SUBSYSTEM=="net", ACTION=="add|remove", ATTRS{idVendor}=="0b05", ATTRS{idProduct}=="17d2", ENV{NM_UNMANAGED}="1", RUN+="/bin/systemctl reload wfb.service"
+SUBSYSTEM=="net", ACTION=="add|remove", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="8812", ENV{NM_UNMANAGED}="1", RUN+="/bin/systemctl reload wfb.service"
