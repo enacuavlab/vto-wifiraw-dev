@@ -24,6 +24,7 @@ git apply ../material/rtl8812au_v5.6.4.2.patch
 DKMS=false
 if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1;then DKMS=true; fi
 if uname -a | grep -cs "4.9.253-tegra"> /dev/null 2>&1;then DKMS=true; fi
+if uname -a | grep -cs "rockchip64> /dev/null 2>&1;then DKMS=true; fi
 if $DKMS; then
   echo "blacklist rtl8812au" |sudo tee -a /etc/modprobe.d/blacklist.conf > /dev/null 2>&1
   sudo apt-get install -y dkms
