@@ -122,3 +122,68 @@ cd vto-wifiraw-dev
 ----------------------------------------------------------------------------------------------
 docker images
 docker rmi
+
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+ rockchip-usb-otg.dts
+"
+/dts-v1/;
+
+/plugin/;
+
+/ {
+        compatible = "rockchip,rk3328-usb\0rockchip,rk3066-usb\0snps,dwc2";
+        
+        fragment@0 {
+                target-path = "/usb@ff580000";
+                __overlay__ {
+                        dr_mode = "host";
+                };
+        };
+
+        
+
+};
+"
+
+dtc -@ -I dts -O dtb -o rockchip-usb-otg.dtbo rockchip-usb-otg.dts
+
+sudo mkdir /boot/overlay-user
+
+sudo cp rockchip-usb-otg.dtbo /boot/overlay-user/
+
+sudo vi /boot/armbianEnv.txt
+"
+user_overlays=rockchip-usb-otg
+----------------------------------------------------------------------------------------------
+rockchip-usb-otg.dts
+"
+/dts-v1/;
+
+/plugin/;
+
+/ {
+        compatible = "rockchip,rk3328-usb\0rockchip,rk3066-usb\0snps,dwc2";
+        
+        fragment@0 {
+                target-path = "/usb@ff580000";
+                __overlay__ {
+                        dr_mode = "host";
+                };
+        };
+
+        
+
+};
+"
+
+dtc -@ -I dts -O dtb -o rockchip-usb-otg.dtbo rockchip-usb-otg.dts
+
+sudo mkdir /boot/overlay-user
+
+sudo cp rockchip-usb-otg.dtbo /boot/overlay-user/
+
+sudo vi /boot/armbianEnv.txt
+"
+user_overlays=rockchip-usb-otg
+"
