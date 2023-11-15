@@ -1,0 +1,56 @@
+ROCKCHIP RK3588
+
+https://www.armbian.com/rock-5b/
+
+https://ppa.launchpadcontent.net/liujianfeng1994/panfork-mesa/ubuntu/dists/jammy/
+
+https://armbian.site-meganet.com/dl/rock-5b/archive/
+
+Armbian_23.8.1_Rock-5b_jammy_legacy_5.10.160_i3-wm_desktop.img.xz
+1.6GB
+
+#Armbian_23.8.1_Rock-5b_jammy_legacy_5.10.160_gnome_desktop.img.xz
+#1.5GB
+
+boot and configure with hdmi display, keyboard and mouse
+
+https://www.youtube.com/watch?v=6km4tYTwfwA
+
+sudo add-apt-repository ppa:liujianfeng1994/rockchip-multimedia
+sudo apt dist-upgrade
+sudo apt install rockchip-multimedia-config
+
+reboot
+
+pprz@rock-5b:~$ uname -a
+Linux rock-5b 5.10.160-legacy-rk35xx #1 SMP Mon Aug 28 01:21:24 UTC 2023 aarch64 aarch64 aarch64 GNU/Linux
+
+sudo apt-get update
+sudo apt-get install gstreamer1.0-rockchip
+sudo apt install gstreamer1.0-tools
+sudo apt install gstreamer1.0-plugins-bad
+sudo apt install v4l-utils
+
+gst-inspect-1.0 rockchipmpp
+
+USB plug the JEVOIS camera
+
+radxa@rock-5b:~$ v4l2-ctl -d /dev/video1 --list-formats-ext
+ioctl: VIDIOC_ENUM_FMT
+    Type: Video Capture
+
+    [0]: 'YUYV' (YUYV 4:2:2)
+        Size: Discrete 1280x740
+            Interval: Discrete 0.100s (10.000 fps)
+        Size: Discrete 640x526
+            Interval: Discrete 0.067s (15.000 fps)
+
+
+gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=192.168.3.1
+
+pprz@feiying:~$gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! queue ! avdec_h265 !  videoconvert ! autovideosink sync=false
+
+
+gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=127.0.0.1
+
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! mppvideodec ! xvimagesink
