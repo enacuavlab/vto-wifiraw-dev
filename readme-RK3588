@@ -1,39 +1,188 @@
-ROCKCHIP RK3588
+Rockchip RK3588
+- Multi-media processor
+  - Mali-G610 
+    High performance OpenGLES 1.1, 2.0 and 3.2, OpenCL 2.2, Vulkan1.2 etc
+  - 8K 10-bits Video decoder
+  - 8K Video encoder
 
-https://www.armbian.com/rock-5b/
 
-https://ppa.launchpadcontent.net/liujianfeng1994/panfork-mesa/ubuntu/dists/jammy/
+----------------------------------------------------------------------------------------------
+DOCKER INSTALL
+--------------
+sudo apt update
+sudo apt install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+apt-cache policy docker-ce
+sudo apt install docker-ce
+sudo systemctl start docker
+sudo systemctl status docker
+sudo usermod -aG docker ${USER}
+su - ${USER}
+groups
+(sudo usermod -aG docker username)
 
-https://armbian.site-meganet.com/dl/rock-5b/archive/
 
-Armbian_23.8.1_Rock-5b_jammy_legacy_5.10.160_i3-wm_desktop.img.xz
-1.6GB
+----------------------------------------------------------------------------------------------
+ARMBIAN COMPILE
+---------------
+git clone --depth=1 --branch=main https://github.com/armbian/build
+cd build
 
-#Armbian_23.8.1_Rock-5b_jammy_legacy_5.10.160_gnome_desktop.img.xz
-#1.5GB
+vi config/kernel/linux-rk35xx-legacy.config
+"
+CONFIG_88XXAU=m
+to
+# CONFIG_88XXAU is not set
+"
 
-boot and configure with hdmi display, keyboard and mouse
+./compile.sh BOARD=rock-5b  BRANCH=legacy  RELEASE=jammy BUILD_MINIMAL=yes BUILD_DESKTOP=no KERNEL_CONFIGURE=no INSTALL_HEADERS=yes ALLOW_ROOT=yes
+=>
+[🐳|🌿] Done building image [ rock-5b ]
+[🐳|🌱] Runtime [ 61:29 min ]
 
-https://www.youtube.com/watch?v=6km4tYTwfwA
+-rw-rw-r-- 1 pprz root 1887436800 nov.  28 15:32 Armbian-unofficial_23.11.0-trunk_Rock-5b_jammy_legacy_5.10.160_minimal.img
+
+
+----------------------------------------------------------------------------------------------
+ROCK-5B BOOT SETUP
+------------------
+
+sudo dd if=Armbian-unofficial_23.11.0-trunk_Rock-5b_jammy_legacy_5.10.160_minimal.img of=/dev/... bs=1M status=progress
+sync
+
+sudo dmesg -w
+=>
+[9926.446443] GPT:Primary header thinks Alt. header is not at the end of the disk.
+[19926.446445] GPT:3694591 != 61951999
+[19926.446446] GPT:Alternate GPT header not at the end of the disk.
+[19926.446447] GPT:3694591 != 61951999
+[19926.446448] GPT: Use GNU Parted to correct GPT errors.
+
+sudo gparted
+FIX 
+
+cd /media/pprz/armbi_boot/
+sudo cp armbian_first_run.txt.template armbian_first_run.txt
+sudo vi armbian_first_run.txt
+"
+FR_net_change_defaults=1
+
+FR_net_ethernet_enabled=1
+
+FR_net_use_static=1
+FR_net_static_ip='192.168.3.2'
+FR_net_static_mask='255.255.255.0'
+FR_net_static_gateway='192.168.3.1'
+FR_net_static_dns='8.8.8.8 8.8.4.4' #2 entries max, seperated by a space.
+
+
+ssh root@192.168.3.2
+1234
+
+create user pprz
+....
+Generating locales: fr_FR.UTF-8
+root@rock-5b:~# reboot
+
+
+----------------------------------------------------------------------------------------------
+ROCK-5B RUN SETUP
+-----------------
+
+ip route
+default via 192.168.3.1 dev enxe4b97ab11842 proto static metric 100 
+default via 192.168.92.126 dev wlp59s0 proto dhcp metric 600 
+
+sudo iptables -t nat -A POSTROUTING -o wlp59s0 -j MASQUERADE
+sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i enxe4b97ab11842 -o wlp59s0 -j ACCEPT
+sudo sysctl net.ipv4.ip_forward=1
+sudo route del default
+
+ip route
+default via 192.168.92.126 dev wlp59s0 proto dhcp metric 600 
+
+
+----------------------------------------------------------------------------------------------
+WIFIRAW SETUP
+-------------
+
+ssh pprz@192.168.3.2
+pprz
+
+uname -a
+=>
+Linux rock-5b 5.10.160-legacy-rk35xx #1 SMP Tue Nov 28 02:45:16 UTC 2023 aarch64 aarch64 aarch64 GNU/Linux
+
+
+Plug usb wifi dongle asus AC 56 and check detection without driver loaded.
+sudo dmesg -w
+=>
+[  297.956711] usb 2-1: new high-speed USB device number 2 using ehci-platform
+[  298.105787] usb 2-1: New USB device found, idVendor=0b05, idProduct=17d2, bcdDevice= 0.00
+[  298.105814] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  298.105837] usb 2-1: Product: 802.11n NIC
+[  298.105858] usb 2-1: Manufacturer: Realtek
+[  298.105876] usb 2-1: SerialNumber: 123456
+
+
+sudo apt-get update
+
+sudo apt-get install vim git 
+
+mkdir Projects
+cd Projects
+git clone --recurse-submodules  http://github.com/enacuavlab/vto-wifiraw-dev.git
+
+cd vto-wifiraw-dev
+./install.sh
+
+Plug usb wifi dongle asus AC 56 and check detection with custom driver loaded.
+sudo dmesg -w
+=>
+...
+[  298.576740] usb 2-1: 88XXau 3c:7c:3f:a9:bf:bb hw_info[d7]
+[  298.596601] usbcore: registered new interface driver rtl88XXau
+[  298.612102] rtl88XXau 2-1:1.0 wlx3c7c3fa9bfbb: renamed from wlan0
+
+
+----------------------------------------------------------------------------------------------
+VIDEO HARDWARE CODECS SETUP (only jammy)
+----------------------------------------
+
+sudo apt install gstreamer1.0-tools
+
+sudo apt-get install software-properties-common
 
 sudo add-apt-repository ppa:liujianfeng1994/rockchip-multimedia
 sudo apt dist-upgrade
 sudo apt install rockchip-multimedia-config
-
-reboot
-
-pprz@rock-5b:~$ uname -a
-Linux rock-5b 5.10.160-legacy-rk35xx #1 SMP Mon Aug 28 01:21:24 UTC 2023 aarch64 aarch64 aarch64 GNU/Linux
-
-sudo apt-get update
 sudo apt-get install gstreamer1.0-rockchip
-sudo apt install gstreamer1.0-tools
-sudo apt install gstreamer1.0-plugins-bad
-sudo apt install v4l-utils
 
 gst-inspect-1.0 rockchipmpp
+=>
+mpph264enc,mpph265enc,mppvideodec
 
+sudo apt install gstreamer1.0-plugins-bad
+
+gst-launch-1.0 videotestsrc ! video/x-raw, width=1280, height=740, framerate=10/1  ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=192.168.3.1
+
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! queue ! avdec_h265 !  videoconvert ! autovideosink sync=false 
+
+----------------------------------------------------------------------------------------------
+
+sudo add-apt-repository ppa:liujianfeng1994/panfork-mesa
+sudo apt update
+
+
+sudo apt install mali-g610-firmware 
+??
+
+----------------------------------------------------------------------------------------------
 USB plug the JEVOIS camera
+----------------------------------------
 
 radxa@rock-5b:~$ v4l2-ctl -d /dev/video1 --list-formats-ext
 ioctl: VIDIOC_ENUM_FMT
@@ -49,8 +198,6 @@ ioctl: VIDIOC_ENUM_FMT
 gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=192.168.3.1
 
 pprz@feiying:~$gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! queue ! avdec_h265 !  videoconvert ! autovideosink sync=false
-
-
 gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=127.0.0.1
 
 gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! mppvideodec ! xvimagesink
