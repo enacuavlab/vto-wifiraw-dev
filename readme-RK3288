@@ -49,7 +49,7 @@ to
 -rw-rw-r-- 1 pprz pprz 1463812096 nov.  27 15:29 Armbian-unofficial_23.11.0-trunk_Nanopineo3_jammy_current_6.1.63_minimal.img
 
 ----------------------------------------------------------------------------------------------
-NAOPI BOOT SETUP
+NANOPINEO BOOT SETUP
 ----------------
 
 sudo dd if=Armbian-unofficial_23.11.0-trunk_Nanopineo3_jammy_current_6.1.63_minimal.img  of=/dev/mmcblkX bs=1M status=progress
