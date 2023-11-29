@@ -1,7 +1,42 @@
-NanoPi NEO3 Rockchip RK3288
+NanoPi NEO3 
+Rockchip RK3288
 - Multi-media processor
   - Mali-T764 
     High performance OpenGL ES1.1/2.0/3.0, OpenCL 1.1, DirectX 11(W version only
   - 2160p Video decoder
   - 1080p Video encoder (H264)
   - HEVC (H.265)
+
+
+----------------------------------------------------------------------------------------------
+DOCKER INSTALL
+--------------
+sudo apt update
+sudo apt install apt-transport-https ca-certificates curl software-properties-common
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+apt-cache policy docker-ce
+sudo apt install docker-ce
+sudo systemctl start docker
+sudo systemctl status docker
+sudo usermod -aG docker ${USER}
+su - ${USER}
+groups
+(sudo usermod -aG docker username)
+
+
+----------------------------------------------------------------------------------------------
+ARMBIAN COMPILE
+---------------
+git clone --depth=1 --branch=main https://github.com/armbian/build
+cd build
+
+vi config/kernel/linux-rockchip64-current.config
+"
+CONFIG_88XXAU=m
+to
+# CONFIG_88XXAU is not set
+"
+
+TO BE COMPLETE ...
