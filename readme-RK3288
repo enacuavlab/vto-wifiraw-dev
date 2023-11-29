@@ -39,4 +39,179 @@ to
 # CONFIG_88XXAU is not set
 "
 
-TO BE COMPLETE ...
+./compile.sh BOARD=nanopineo3 BRANCH=current RELEASE=jammy BUILD_MINIMAL=yes BUILD_DESKTOP=no KERNEL_CONFIGURE=no INSTALL_HEADERS=yes ALLOW_ROOT=yes
+=> 
+[🐳|🌱] Preparing bare kernel git tree [ this might take a long time ]
+
+[🐳|🌿] Done building image [ nanopineo3 ]
+[🐳|🌱] Runtime [ 60:00 min ]
+
+-rw-rw-r-- 1 pprz pprz 1463812096 nov.  27 15:29 Armbian-unofficial_23.11.0-trunk_Nanopineo3_jammy_current_6.1.63_minimal.img
+
+----------------------------------------------------------------------------------------------
+NAOPI BOOT SETUP
+----------------
+
+sudo dd if=Armbian-unofficial_23.11.0-trunk_Nanopineo3_jammy_current_6.1.63_minimal.img  of=/dev/mmcblkX bs=1M status=progress
+sync
+
+sudo dmesg -w
+=>
+[9926.446443] GPT:Primary header thinks Alt. header is not at the end of the disk.
+[19926.446445] GPT:3694591 != 61951999
+[19926.446446] GPT:Alternate GPT header not at the end of the disk.
+[19926.446447] GPT:3694591 != 61951999
+[19926.446448] GPT: Use GNU Parted to correct GPT errors.
+
+sudo gparted
+FIX
+
+cd /media/pprz/armbi_boot/
+sudo cp armbian_first_run.txt.template armbian_first_run.txt
+sudo vi armbian_first_run.txt
+"
+FR_net_change_defaults=1
+
+FR_net_ethernet_enabled=1
+
+FR_net_use_static=1
+FR_net_static_ip='192.168.3.2'
+FR_net_static_mask='255.255.255.0'
+FR_net_static_gateway='192.168.3.1'
+FR_net_static_dns='8.8.8.8 8.8.4.4' #2 entries max, seperated by a space.
+
+ssh root@192.168.3.2
+1234
+
+create user pprz
+....
+Generating locales: fr_FR.UTF-8
+root@rnanopineo:~# reboot
+
+
+----------------------------------------------------------------------------------------------
+NANOPINEO RUN SETUP
+--------------------
+
+ip route
+default via 192.168.3.1 dev enxe4b97ab11842 proto static metric 100 
+default via 192.168.92.126 dev wlp59s0 proto dhcp metric 600 
+
+sudo iptables -t nat -A POSTROUTING -o wlp59s0 -j MASQUERADE
+sudo iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+sudo iptables -A FORWARD -i enxe4b97ab11842 -o wlp59s0 -j ACCEPT
+sudo sysctl net.ipv4.ip_forward=1
+sudo route del default
+
+ip route
+default via 192.168.92.126 dev wlp59s0 proto dhcp metric 600 
+
+
+----------------------------------------------------------------------------------------------
+WIFIRAW SETUP
+-------------
+
+ssh pprz@192.168.3.2
+pprz
+
+uname -a
+=> 
+Linux nanopineo3 6.1.56-current-rockchip64 #1 SMP PREEMPT Fri Oct  6 12:57:07 UTC 2023 aarch64 GNU/Linux
+
+Plug usb wifi dongle asus AC 56 and check detection without driver loaded.
+sudo dmesg -w
+=>
+[  297.956711] usb 2-1: new high-speed USB device number 2 using ehci-platform
+[  298.105787] usb 2-1: New USB device found, idVendor=0b05, idProduct=17d2, bcdDevice= 0.00
+[  298.105814] usb 2-1: New USB device strings: Mfr=1, Product=2, SerialNumber=3
+[  298.105837] usb 2-1: Product: 802.11n NIC
+[  298.105858] usb 2-1: Manufacturer: Realtek
+[  298.105876] usb 2-1: SerialNumber: 123456
+
+
+sudo apt-get update
+
+sudo apt-get install vim git 
+
+mkdir Projects
+cd Projects
+git clone --recurse-submodules  http://github.com/enacuavlab/vto-wifiraw-dev.git
+
+cd vto-wifiraw-dev
+./install.sh
+
+Plug usb wifi dongle asus AC 56 and check detection with custom driver loaded.
+sudo dmesg -w
+=>
+...
+[  298.576740] usb 2-1: 88XXau 3c:7c:3f:a9:bf:bb hw_info[d7]
+[  298.596601] usbcore: registered new interface driver rtl88XXau
+[  298.612102] rtl88XXau 2-1:1.0 wlx3c7c3fa9bfbb: renamed from wlan0
+
+
+----------------------------------------------------------------------------------------------
+VIDEO HARDWARE CODECS SETUP (only jammy)
+----------------------------------------
+
+sudo apt install gstreamer1.0-tools
+
+sudo apt-get install software-properties-common
+
+sudo add-apt-repository ppa:liujianfeng1994/rockchip-multimedia
+sudo apt dist-upgrade
+sudo apt install rockchip-multimedia-config
+sudo apt-get install gstreamer1.0-rockchip
+
+gst-inspect-1.0 rockchipmpp
+
+????
+
+----------------------------------------------------------------------------------------------
+ON/OFF BUTTON AND USB SETUP
+----------------------------
+rockchip-usb-powerbutton.dts
+"
+/dts-v1/;
+
+/plugin/;
+
+/ {
+        compatible = "rockchip,rk3328-usb\0rockchip,rk3066-usb\0snps,dwc2";
+        
+        fragment@0 {
+                target-path = "/usb@ff580000";
+                __overlay__ {
+                        dr_mode = "host";
+                };
+        };
+
+        fragment@1 {
+                target-path = "/";
+                __overlay__ {
+                    gpio-keys {
+
+                        button@0 {
+
+                           label = "k1_button";
+                           linux,code = <0x74>;      //0x198 = KEY_RESTART, 0x74 = KEY_POWER
+                        };
+                    };
+                };
+        };
+        
+};
+"
+
+dtc -@ -I dts -O dtb -o rockchip-usb-powerbutton.dtbo rockchip-usb-powerbutton.dts
+
+sudo mkdir /boot/overlay-user
+
+sudo cp rockchip-usb-powerbutton.dtbo /boot/overlay-user/
+
+sudo vi /boot/armbianEnv.txt
+"
+user_overlays=rockchip-usb-powerbutton
+"
+
+
+----------------------------------------------------------------------------------------------
