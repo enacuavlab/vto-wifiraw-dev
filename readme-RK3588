@@ -182,9 +182,25 @@ sudo apt install mali-g610-firmware
 
 ----------------------------------------------------------------------------------------------
 USB plug the JEVOIS camera
-----------------------------------------
+--------------------------
+sudo dmessg -w
+=>
+[ 3278.325199] usb 2-1.1: new high-speed USB device number 4 using ehci-platform
+[ 3278.424030] usb 2-1.1: New USB device found, idVendor=1d6b, idProduct=0102, bcdDevice= 1.00
+[ 3278.424057] usb 2-1.1: New USB device strings: Mfr=1, Product=2, SerialNumber=0
+[ 3278.424076] usb 2-1.1: Product: JeVois-A33 Smart Camera
+[ 3278.424093] usb 2-1.1: Manufacturer: JeVois Inc
+[ 3278.428615] uvcvideo: Found UVC 1.00 device JeVois-A33 Smart Camera (1d6b:0102)
+[ 3278.434938] input: JeVois-A33 Smart Camera: JeVois as /devices/platform/fc880000.usb/usb2/2-1/2-1.1/2-1.1:1.0/input/input8
+....
+[ 3278.510048] cdc_acm 2-1.1:1.2: ttyACM0: USB ACM device
+[ 3278.514671] usb-storage 2-1.1:1.4: USB Mass Storage device detected
+[ 3278.516709] scsi host0: usb-storage 2-1.1:1.4
+[ 3279.534250] scsi 0:0:0:0: Direct-Access     JeVois   Smart Camera     0333 PQ: 0 ANSI: 2
+[ 3279.538580] sd 0:0:0:0: Power-on or device reset occurred
+[ 3279.570100] sd 0:0:0:0: [sda] Attached SCSI removable disk
 
-radxa@rock-5b:~$ v4l2-ctl -d /dev/video1 --list-formats-ext
+v4l2-ctl -d /dev/video1 --list-formats-ext
 ioctl: VIDIOC_ENUM_FMT
     Type: Video Capture
 
@@ -194,10 +210,42 @@ ioctl: VIDIOC_ENUM_FMT
         Size: Discrete 640x526
             Interval: Discrete 0.067s (15.000 fps)
 
+gst-launch-1.0 videotestsrc ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoconvert ! video/x-raw, format=BGRA ! autovideosink
+
+gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoconvert ! video/x-raw, format=BGRA ! autovideosink
+
+gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=127.0.0.1
+
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! mppvideodec ! videoconvert ! video/x-raw, format=BGRA ! autovideosink
 
 gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=192.168.3.1
 
-pprz@feiying:~$gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! queue ! avdec_h265 !  videoconvert ! autovideosink sync=false
-gst-launch-1.0 v4l2src device=/dev/video1 ! video/x-raw, width=1280, height=740, framerate=10/1 ! videoscale ! video/x-raw, width=1280, height=736, framerate=10/1 ! mpph265enc ! rtph265pay config-interval=-1 ! udpsink port=5600 host=127.0.0.1
+PC 192.168.3.1 
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! queue ! avdec_h265 !  videoconvert ! autovideosink sync=false 
 
-gst-launch-1.0 udpsrc port=5600 ! application/x-rtp, encoding-name=H265, payload=96 ! rtph265depay ! h265parse ! mppvideodec ! xvimagesink
+----------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+sudo apt install neofetch
+neofetch
+pprz@rock-5b:~$ neofetch
+            .-/+oossssoo+/-.               pprz@rock-5b 
+        `:+ssssssssssssssssss+:`           ------------ 
+      -+ssssssssssssssssssyyssss+-         OS: Ubuntu 22.04.3 LTS aarch64 
+    .ossssssssssssssssssdMMMNysssso.       Host: Radxa ROCK 5B 
+   /ssssssssssshdmmNNmmyNMMMMhssssss/      Kernel: 5.10.160-legacy-rk35xx 
+  +ssssssssshmydMMMMMMMNddddyssssssss+     Uptime: 23 mins 
+ /sssssssshNMMMyhhyyyyhmNMMMNhssssssss/    Packages: 633 (dpkg) 
+.ssssssssdMMMNhsssssssssshNMMMdssssssss.   Shell: bash 5.1.16 
++sssshhhyNMMNyssssssssssssyNMMMysssssss+   Resolution: 2560x1440 
+ossyNMMMNyMMhsssssssssssssshmmmhssssssso   Terminal: /dev/pts/0 
+ossyNMMMNyMMhsssssssssssssshmmmhssssssso   CPU: (8) @ 1.800GHz 
++sssshhhyNMMNyssssssssssssyNMMMysssssss+   Memory: 164MiB / 3734MiB 
+.ssssssssdMMMNhsssssssssshNMMMdssssssss.
+ /sssssssshNMMMyhhyyyyhdNMMMNhssssssss/                            
+  +sssssssssdmydMMMMMMMMddddyssssssss+                             
+   /ssssssssssshdmNNNNmyNMMMMhssssss/
+    .ossssssssssssssssssdMMMNysssso.
+      -+sssssssssssssssssyyyssss+-
+        `:+ssssssssssssssssss+:`
+            .-/+oossssoo+/-.
+
