@@ -1,0 +1,7 @@
+NanoPi NEO3 Rockchip RK3288
+- Multi-media processor
+  - Mali-T764 
+    High performance OpenGL ES1.1/2.0/3.0, OpenCL 1.1, DirectX 11(W version only
+  - 2160p Video decoder
+  - 1080p Video encoder (H264)
+  - HEVC (H.265)
