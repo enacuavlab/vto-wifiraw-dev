@@ -64,6 +64,9 @@ sudo dmesg -w
 sudo gparted
 FIX 
 
+sudo mkdir /media/pprz/armbi_boot
+sudo mount -t ext4 /dev/xxx armbi_boot
+
 cd /media/pprz/armbi_boot/
 sudo cp armbian_first_run.txt.template armbian_first_run.txt
 sudo vi armbian_first_run.txt
@@ -78,6 +81,7 @@ FR_net_static_mask='255.255.255.0'
 FR_net_static_gateway='192.168.3.1'
 FR_net_static_dns='8.8.8.8 8.8.4.4' #2 entries max, seperated by a space.
 
+sudo umount /dev/xxx
 
 ssh root@192.168.3.2
 1234
