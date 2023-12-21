@@ -38,6 +38,9 @@ to
 # CONFIG_88XXAU is not set
 "
 
+Prepare to download 40Gb of files from internet
+One line build command within docker:
+
 ./compile.sh BOARD=rock-5b  BRANCH=legacy  RELEASE=jammy BUILD_MINIMAL=yes BUILD_DESKTOP=no KERNEL_CONFIGURE=no INSTALL_HEADERS=yes ALLOW_ROOT=yes
 =>
 [🐳|🌿] Done building image [ rock-5b ]
