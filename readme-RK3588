@@ -308,6 +308,7 @@ ossyNMMMNyMMhsssssssssssssshmmmhssssssso   CPU: (8) @ 1.800GHz
         `:+ssssssssssssssssss+:`
             .-/+oossssoo+/-.
 
+
 ----------------------------------------------------------------------------------------------
 ROCK-5B BOOTABLE FROM SD AND NVME
 ---------------------------------
@@ -350,17 +351,13 @@ nvme0n1
 └─nvme0n1p2 ext4   1.0   armbi_root 2ac3b709-7515-403e-a902-8fb86c5497a2
 
 sudo armbian-install
-- 7 Install/Update the bootloader on MTD Flash
-5 minutes later ...
-
-sudo armbian-install
 - 4 Boot drom MTD Flash
 choose nvme0n1p2 partition to install system
 "This will take approximately 7 minutes to finish"
 Do you want to write the bootloader to MTD Flash ?
-(already done above !)
+5 minutes later ...
 
-don't POWEROFF, just EXIT)
+don't POWEROFF, just EXIT
 
 sudo dd if=/dev/mmcblk1p1 of=/dev/nvme0n1p1 bs=1M
 
