@@ -112,7 +112,6 @@ sudo route del default
 ip route
 default via 192.168.92.126 dev wlp59s0 proto dhcp metric 600 
 
-
 ----------------------------------------------------------------------------------------------
 WIFIRAW SETUP
 -------------
@@ -142,9 +141,9 @@ sudo apt-get install vim git
 
 mkdir Projects
 cd Projects
-git clone --recurse-submodules  http://github.com/enacuavlab/vto-wifiraw-dev.git
+git clone --recurse-submodules  http://github.com/enacuavlab/vto-wifiraw.git
 
-cd vto-wifiraw-dev
+cd vto-wifiraw
 ./install.sh
 
 Plug usb wifi dongle asus AC 56 and check detection with custom driver loaded.
@@ -309,3 +308,76 @@ ossyNMMMNyMMhsssssssssssssshmmmhssssssso   CPU: (8) @ 1.800GHz
         `:+ssssssssssssssssss+:`
             .-/+oossssoo+/-.
 
+----------------------------------------------------------------------------------------------
+ROCK-5B BOOTABLE FROM SD AND NVME
+---------------------------------
+sudo parted
+=>
+GNU Parted 3.4
+Using /dev/nvme0n1
+
+mklabel gpt
+
+unit s
+
+mkpart FAT16 0% 1%
+
+mkpart EXT4 1% 10%
+
+quit
+
+lsblk
+=>
+nvme0n1     259:0    0 238,5G  0 disk
+├─nvme0n1p1 259:3    0   2,4G  0 part
+└─nvme0n1p2 259:4    0  21,5G  0 part
+
+sudo mkfs.fat -F 16 /dev/nvme0n1p1
+sudo mkfs.ext4 /dev/nvme0n1p2
+
+lsblk --fs
+=>
+nvme0n1
+├─nvme0n1p1 vfat   FAT16            C16D-CD2E
+└─nvme0n1p2 ext4   1.0              99e73d00-343b-4a40-8387-3f22c11eb414
+
+dosfslabel /dev/nvme0n1p1 armbi_boot
+e2label /dev/nvme0n1p2 armbi_root
+
+lsblk --fs
+nvme0n1
+├─nvme0n1p1 vfat   FAT16 armbi_boot 0815-F607
+└─nvme0n1p2 ext4   1.0   armbi_root 2ac3b709-7515-403e-a902-8fb86c5497a2
+
+sudo armbian-install
+- 7 Install/Update the bootloader on MTD Flash
+5 minutes later ...
+
+sudo armbian-install
+- 4 Boot drom MTD Flash
+choose nvme0n1p2 partition to install system
+"This will take approximately 7 minutes to finish"
+Do you want to write the bootloader to MTD Flash ?
+(already done above !)
+
+don't POWEROFF, just EXIT)
+
+sudo dd if=/dev/mmcblk1p1 of=/dev/nvme0n1p1 bs=1M
+
+sudo mount /dev/nvme0n1p1 /mnt
+ls -la /mnt
+=>
+...
+
+blkid
+=>
+/dev/nvme0n1p2: UUID="0687faab-371d-415b-be2b-4667e772083c" BLOCK_SIZE="4096" TYPE="ext4" PARTLABEL="EXT4" PARTUUID="cedbef14-216e-40c4-9f58-4a325841a131"
+
+sudo vi /mnt/armbianEnv.txt
+"
+rootdev=UUID=0687faab-371d-415b-be2b-4667e772083c
+"
+
+sudo poweroff
+remove SD
+powerON
