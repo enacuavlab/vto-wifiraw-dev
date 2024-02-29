@@ -310,6 +310,31 @@ ossyNMMMNyMMhsssssssssssssshmmmhssssssso   CPU: (8) @ 1.800GHz
 
 
 ----------------------------------------------------------------------------------------------
+ROCK-5B USING FREE UART TO AUTOPILOT (PPRZ)
+-------------------------------------------
+sudo mkdir /boot/overlay-user
+sudo cp /boot/dtb-5.10.160-legacy-rk35xx/rockchip/overlay/rk3588-uart7-m2.dtbo /boot/overlay-user
+
+sudo vi /boot/armbianEnv.txt
+"
+user_overlays=rk3588-uart7-m2
+"
+
+sudo reboot
+ls -la /dev/ttyS7
+
+sudo socat /dev/ttyS7,b115200 udp4-datagram:192.168.3.1:4244
+sudo socat udp4-datagram:192.168.3.1:4245 /dev/ttyS7,b115200 
+
+
+(
+python3 -m pip install pyserial
+/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/link -d /dev/ttyUSB0 -transport xbee -s 57600
+/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/link_py.py -d /dev/ttyUSB0 -t xbee -s 57600 -ac 115:127.0.0.1:4244:4245
+/home/pprz/Projects/paparazzi/sw/ground_segment/tmtc/messages
+)
+
+----------------------------------------------------------------------------------------------
 ROCK-5B BOOTABLE FROM SD AND NVME
 ---------------------------------
 sudo parted
