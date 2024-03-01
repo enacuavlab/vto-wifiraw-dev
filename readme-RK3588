@@ -235,7 +235,7 @@ gst-launch-1.0 videotestsrc ! video/x-raw, width=2560, height=1440, framerate=59
 ----------------------------------------------------------------------------------------------
 USB plug the JEVOIS camera
 --------------------------
-sudo dmessg -w
+sudo dmesg -w
 =>
 [ 3278.325199] usb 2-1.1: new high-speed USB device number 4 using ehci-platform
 [ 3278.424030] usb 2-1.1: New USB device found, idVendor=1d6b, idProduct=0102, bcdDevice= 1.00
