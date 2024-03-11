@@ -367,7 +367,7 @@ unit s
 
 mkpart FAT16 0% 1%
 
-mkpart EXT4 1% 10%
+mkpart EXT4 1% 100%
 
 quit
 
