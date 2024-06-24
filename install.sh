@@ -17,7 +17,7 @@ PROJ=$PWD
 read -p "for this side in $PROJ (y/n) ?" ANSWER
 if [ ! $ANSWER = "y" ] || [ -z $ANSWER ]; then exit -1; fi
 if ! groups | grep -q 'sudo'; then exit -1; fi
-sudo apt-get install -y socat git net-tools wireless-tools rfkill v4l-utils
+sudo apt-get install -y socat git net-tools wireless-tools rfkill v4l-utils build-essential
 cd $PROJ/rtl8812au
 if uname -a | grep -cs "4.9.253-tegra"> /dev/null 2>&1;then git checkout 4ab079f7; fi
 git apply ../material/rtl8812au_v5.6.4.2.patch
@@ -26,6 +26,7 @@ if uname -a | grep -cs "Ubuntu"> /dev/null 2>&1;then DKMS=true; fi
 if uname -a | grep -cs "4.9.253-tegra"> /dev/null 2>&1;then DKMS=true; fi
 if uname -a | grep -cs "rockchip64"> /dev/null 2>&1;then DKMS=true; fi
 if uname -a | grep -cs "rock-5b"> /dev/null 2>&1;then DKMS=true; fi
+if uname -a | grep -cs "radxa-zero3"> /dev/null 2>&1;then DKMS=true; fi
 if $DKMS; then
   echo "blacklist rtl8812au" |sudo tee -a /etc/modprobe.d/blacklist.conf > /dev/null 2>&1
   sudo apt-get install -y dkms
